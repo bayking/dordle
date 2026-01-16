@@ -12,4 +12,4 @@ COPY tsconfig.json drizzle.config.ts ./
 
 ENV NODE_ENV=production
 
-ENTRYPOINT ["bun", "run", "src/index.ts"]
+CMD ["sh", "-c", "bun run src/db/migrate.ts && bun run src/index.ts"]

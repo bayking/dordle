@@ -1,6 +1,6 @@
 import { AttachmentBuilder } from 'discord.js';
 import { validateConfig } from '@/config';
-import { initializeDb } from '@/db';
+import { getDb } from '@/db';
 import { startBot } from '@/bot';
 import {
   startScheduler,
@@ -19,7 +19,7 @@ import { log } from '@/infrastructure/logger';
 async function main(): Promise<void> {
   try {
     validateConfig();
-    initializeDb();
+    getDb();
 
     const client = await startBot();
 
