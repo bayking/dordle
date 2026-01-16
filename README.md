@@ -124,8 +124,8 @@ The bot will scan messages, find Wordle app summaries, and import all scores. Du
 ## Environment Variables
 
 ```
-DISCORD_TOKEN=your_bot_token_here
-DISCORD_CLIENT_ID=your_client_id_here
+DISCORD_BOT_TOKEN=your_bot_token_here
+DISCORD_APPLICATION_ID=your_client_id_here
 DATABASE_PATH=./data/dordle.db
 ```
 

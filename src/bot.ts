@@ -26,7 +26,7 @@ export async function registerCommands(): Promise<void> {
 
   const commandData = commands.map((cmd) => cmd.data.toJSON());
 
-  await rest.put(Routes.applicationCommands(config.discord.clientId), {
+  await rest.put(Routes.applicationCommands(config.discord.applicationId), {
     body: commandData,
   });
 

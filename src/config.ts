@@ -1,7 +1,7 @@
 export const config = {
   discord: {
-    token: process.env.DISCORD_TOKEN ?? '',
-    clientId: process.env.DISCORD_CLIENT_ID ?? '',
+    token: process.env.DISCORD_BOT_TOKEN ?? '',
+    applicationId: process.env.DISCORD_APPLICATION_ID ?? '',
   },
   database: {
     path: process.env.DATABASE_PATH ?? './data/dordle.db',
@@ -10,9 +10,9 @@ export const config = {
 
 export function validateConfig(): void {
   if (!config.discord.token) {
-    throw new Error('DISCORD_TOKEN is required');
+    throw new Error('DISCORD_BOT_TOKEN is required');
   }
-  if (!config.discord.clientId) {
-    throw new Error('DISCORD_CLIENT_ID is required');
+  if (!config.discord.applicationId) {
+    throw new Error('DISCORD_APPLICATION_ID is required');
   }
 }
