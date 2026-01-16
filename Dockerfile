@@ -10,9 +10,10 @@ COPY --from=install /app/node_modules node_modules
 COPY src ./src
 COPY tsconfig.json drizzle.config.ts ./
 
+RUN mkdir -p /app/data && chown -R bun:bun /app/data
+
 ENV NODE_ENV=production
 
 USER bun
-EXPOSE 3000/tcp
 
 ENTRYPOINT ["bun", "run", "src/index.ts"]
