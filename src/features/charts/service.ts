@@ -29,7 +29,7 @@ export async function generateDistributionChart(
     distribution[Score.Fail],
   ];
 
-  new Chart(ctx as unknown as CanvasRenderingContext2D, {
+  const chart = new Chart(ctx as unknown as CanvasRenderingContext2D, {
     type: 'bar',
     data: {
       labels,
@@ -58,19 +58,38 @@ export async function generateDistributionChart(
           display: true,
           text: `${username}'s Score Distribution`,
           font: { size: 18 },
+          color: '#000',
         },
         legend: { display: false },
       },
       scales: {
+        x: {
+          title: {
+            display: true,
+            text: 'Guesses',
+            color: '#000',
+          },
+          ticks: { color: '#000' },
+          grid: { color: '#e0e0e0' },
+        },
         y: {
+          title: {
+            display: true,
+            text: 'Games',
+            color: '#000',
+          },
           beginAtZero: true,
-          ticks: { stepSize: 1 },
+          ticks: { stepSize: 1, color: '#000' },
+          grid: { color: '#e0e0e0' },
         },
       },
     },
   });
 
-  return canvas.toBuffer('image/png');
+  chart.draw();
+  const buffer = canvas.toBuffer('image/png');
+  chart.destroy();
+  return buffer;
 }
 
 export async function generateTrendChart(
@@ -88,7 +107,7 @@ export async function generateTrendChart(
   const labels = sortedGames.map((g) => `#${g.wordleNumber}`);
   const data = sortedGames.map((g) => (g.score === Score.Fail ? null : g.score));
 
-  new Chart(ctx as unknown as CanvasRenderingContext2D, {
+  const chart = new Chart(ctx as unknown as CanvasRenderingContext2D, {
     type: 'line',
     data: {
       labels,
@@ -112,19 +131,38 @@ export async function generateTrendChart(
           display: true,
           text: `${username}'s Score Trend`,
           font: { size: 18 },
+          color: '#000',
         },
         legend: { display: false },
       },
       scales: {
+        x: {
+          title: {
+            display: true,
+            text: 'Wordle #',
+            color: '#000',
+          },
+          ticks: { color: '#000' },
+          grid: { color: '#e0e0e0' },
+        },
         y: {
+          title: {
+            display: true,
+            text: 'Score',
+            color: '#000',
+          },
           reverse: true,
           min: 1,
           max: 6,
-          ticks: { stepSize: 1 },
+          ticks: { stepSize: 1, color: '#000' },
+          grid: { color: '#e0e0e0' },
         },
       },
     },
   });
 
-  return canvas.toBuffer('image/png');
+  chart.draw();
+  const buffer = canvas.toBuffer('image/png');
+  chart.destroy();
+  return buffer;
 }
