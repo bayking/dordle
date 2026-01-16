@@ -23,8 +23,11 @@ async function main(): Promise<void> {
 
     const schedulerConfig = {
       dailyTime: '0 9 * * *',
+      dailyHour: 9,
       weeklyDay: 0,
+      weeklyHour: 10,
       monthlyDay: 1,
+      monthlyHour: 11,
       onSummaryGenerated: async (serverId: number, channelId: string, period: SummaryPeriod, summary: unknown) => {
         const channel = await client.channels.fetch(channelId);
         if (!channel?.isTextBased()) return;
