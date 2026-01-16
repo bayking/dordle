@@ -1,14 +1,10 @@
-import dotenv from 'dotenv';
-
-dotenv.config();
-
 export const config = {
   discord: {
-    token: process.env.DISCORD_TOKEN || '',
-    clientId: process.env.DISCORD_CLIENT_ID || '',
+    token: process.env.DISCORD_TOKEN ?? '',
+    clientId: process.env.DISCORD_CLIENT_ID ?? '',
   },
   database: {
-    path: process.env.DATABASE_PATH || './data/dordle.db',
+    path: process.env.DATABASE_PATH ?? './data/dordle.db',
   },
 } as const;
 

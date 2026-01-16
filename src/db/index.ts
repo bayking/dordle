@@ -1,25 +1,27 @@
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { Database } from 'bun:sqlite';
+import { drizzle } from 'drizzle-orm/bun-sqlite';
 import * as schema from '@/db/schema';
 import { config } from '@/config';
 import { mkdirSync, existsSync } from 'fs';
 import { dirname } from 'path';
 
 let db: ReturnType<typeof drizzle<typeof schema>> | null = null;
-let sqlite: Database.Database | null = null;
+let sqlite: Database | null = null;
 
 export function getDb() {
   if (!db) {
     const dbPath = config.database.path;
-    const dir = dirname(dbPath);
 
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true });
+    if (dbPath !== ':memory:') {
+      const dir = dirname(dbPath);
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+      }
     }
 
     sqlite = new Database(dbPath);
-    sqlite.pragma('journal_mode = WAL');
-    sqlite.pragma('foreign_keys = ON');
+    sqlite.exec('PRAGMA journal_mode = WAL');
+    sqlite.exec('PRAGMA foreign_keys = ON');
 
     db = drizzle(sqlite, { schema });
   }
@@ -37,16 +39,14 @@ export function closeDb() {
 export function initializeDb() {
   const database = getDb();
 
-  // Create tables if they don't exist
-  const sqliteDb = sqlite!;
-  sqliteDb.exec(`
+  sqlite!.exec(`
     CREATE TABLE IF NOT EXISTS servers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       discord_id TEXT NOT NULL UNIQUE,
       wordle_channel_id TEXT,
       summary_channel_id TEXT,
       timezone TEXT DEFAULT 'UTC',
-      created_at INTEGER NOT NULL
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
     );
 
     CREATE TABLE IF NOT EXISTS users (
@@ -54,7 +54,7 @@ export function initializeDb() {
       server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
       discord_id TEXT NOT NULL,
       wordle_username TEXT,
-      created_at INTEGER NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
       UNIQUE(server_id, discord_id)
     );
 
@@ -64,7 +64,7 @@ export function initializeDb() {
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       wordle_number INTEGER NOT NULL,
       score INTEGER NOT NULL,
-      played_at INTEGER NOT NULL,
+      played_at INTEGER NOT NULL DEFAULT (unixepoch()),
       message_id TEXT,
       UNIQUE(server_id, user_id, wordle_number)
     );
