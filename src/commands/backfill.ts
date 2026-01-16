@@ -6,6 +6,7 @@ import {
 } from 'discord.js';
 import { getOrCreateServer } from '@/features/stats';
 import { handleMessage } from '@/features/parser';
+import { log } from '@/infrastructure/logger';
 
 export const backfillCommand = {
   data: new SlashCommandBuilder()
@@ -57,7 +58,10 @@ export const backfillCommand = {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
 
+    log.info({ days, channelId: server.wordleChannelId, cutoffDate }, 'starting backfill');
+
     let processed = 0;
+    let botMessages = 0;
     let lastMessageId: string | undefined;
 
     while (true) {
@@ -66,27 +70,34 @@ export const backfillCommand = {
         before: lastMessageId,
       });
 
+      log.debug({ fetched: messages.size, before: lastMessageId }, 'fetched messages batch');
+
       if (messages.size === 0) break;
 
       for (const message of messages.values()) {
         if (message.createdAt < cutoffDate) {
+          log.info({ processed, botMessages }, 'backfill complete (reached cutoff)');
           await interaction.editReply({
-            content: `Backfill complete. Processed ${processed} messages.`,
+            content: `Backfill complete. Processed ${botMessages} bot messages out of ${processed} total.`,
           });
           return;
         }
 
+        processed++;
+
         if (message.author.bot) {
+          botMessages++;
+          log.debug({ author: message.author.username, date: message.createdAt }, 'processing bot message');
           await handleMessage(message);
-          processed++;
         }
 
         lastMessageId = message.id;
       }
     }
 
+    log.info({ processed, botMessages }, 'backfill complete (end of channel)');
     await interaction.editReply({
-      content: `Backfill complete. Processed ${processed} messages.`,
+      content: `Backfill complete. Processed ${botMessages} bot messages out of ${processed} total.`,
     });
   },
 };
