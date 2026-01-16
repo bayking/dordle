@@ -27,8 +27,9 @@ export async function formatLeaderboardEmbed(
     const medal = entry.rank <= 3 ? RANK_MEDALS[entry.rank - 1] : `${entry.rank}.`;
     const name = await resolveUsername(client, entry);
     const avg = entry.average === Infinity ? 'N/A' : entry.average.toFixed(2);
+    const streak = entry.currentStreak > 0 ? ` 🔥${entry.currentStreak}` : '';
 
-    lines.push(`${medal} **${name}** - ${avg} avg (${entry.gamesPlayed} games)`);
+    lines.push(`${medal} **${name}** - ${avg} avg, ${entry.gamesPlayed} games${streak}`);
   }
 
   return new EmbedBuilder()
