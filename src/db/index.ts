@@ -36,6 +36,15 @@ export function closeDb() {
   }
 }
 
+export function setDb(testDb: ReturnType<typeof drizzle<typeof schema>>) {
+  db = testDb;
+}
+
+export function resetDb() {
+  db = null;
+  sqlite = null;
+}
+
 export function initializeDb() {
   const database = getDb();
 
