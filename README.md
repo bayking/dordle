@@ -1,6 +1,16 @@
 # Dordle
 
-A self-hostable Discord bot that tracks Wordle statistics from the official Wordle Discord app. Simply add Dordle to your server, point it at the channel where the Wordle app posts results, and it will automatically track everyone's scores.
+A Discord bot that tracks Wordle statistics from the official Wordle Discord app. Simply add Dordle to your server, point it at the channel where the Wordle app posts results, and it will automatically track everyone's scores.
+
+## Add to Your Server
+
+**[Invite Dordle](https://discord.com/oauth2/authorize?client_id=1461635317718192128&permissions=116736&integration_type=0&scope=bot+applications.commands)** - Click to add the hosted bot to your server instantly.
+
+Once added, run `/config channel #your-wordle-channel` to start tracking.
+
+Want to self-host instead? See [Self-Hosting](#self-hosting) below.
+
+---
 
 ## What It Does
 
@@ -22,7 +32,9 @@ No manual input required from players - just keep playing Wordle as usual!
 - **Auto Summaries** - Daily winners, weekly rankings, monthly champions
 - **Backfill** - Import historical scores from past messages
 
-## Quick Start
+## Self-Hosting
+
+If you prefer to run your own instance of Dordle:
 
 ### 1. Create Your Discord Bot
 
@@ -119,7 +131,9 @@ The bot will scan messages, find Wordle app summaries, and import all scores. Du
 |---------|-------------|
 | `/config channel #channel` | Set which channel has Wordle posts |
 | `/config summary #channel` | Set where summaries are posted |
+| `/config timezone America/New_York` | Set server timezone for summaries |
 | `/backfill [days]` | Import historical Wordle messages |
+| `/reset CONFIRM` | Clear all server statistics |
 
 ## Environment Variables
 
