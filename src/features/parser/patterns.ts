@@ -1,7 +1,8 @@
 import { Score } from '@/features/stats';
 
 export interface ParsedScore {
-  username: string;
+  discordId?: string;
+  username?: string;
   score: Score;
 }
 
@@ -42,15 +43,29 @@ export function parseWordleMessage(content: string): ParsedResult | null {
     const score: Score = scoreStr === 'X' ? Score.Fail : (parseInt(scoreStr, 10) as Score);
     const usersSection = match[3]!;
 
-    // Extract @usernames - username ends at next @ or end of section
-    const userPattern = /@([^@]+?)(?=\s*@|$)/g;
-    let userMatch;
-    while ((userMatch = userPattern.exec(usersSection)) !== null) {
-      const username = userMatch[1]!.trim();
-      if (username && !username.includes('/6')) {
-        scores.push({ username, score });
-        if (isCrownLine) {
-          winners.push(username);
+    // Extract Discord mentions <@123456> or <@!123456> and plain @usernames
+    const mentionPattern = /<@!?(\d+)>/g;
+    const usernamePattern = /@([^@<>\s]+)/g;
+
+    let mentionMatch;
+    while ((mentionMatch = mentionPattern.exec(usersSection)) !== null) {
+      const discordId = mentionMatch[1]!;
+      scores.push({ discordId, score });
+      if (isCrownLine) {
+        winners.push(discordId);
+      }
+    }
+
+    // Also check for plain @usernames (fallback)
+    if (scores.length === 0 || !usersSection.includes('<@')) {
+      let userMatch;
+      while ((userMatch = usernamePattern.exec(usersSection)) !== null) {
+        const username = userMatch[1]!.trim();
+        if (username && !username.includes('/6')) {
+          scores.push({ username, score });
+          if (isCrownLine) {
+            winners.push(username);
+          }
         }
       }
     }

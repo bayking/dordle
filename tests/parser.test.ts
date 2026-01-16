@@ -1,12 +1,56 @@
 import { describe, it, expect } from 'vitest';
 import { parseWordleMessage } from '@/features/parser/patterns';
 
+// Test constants
+const DISCORD_IDS = {
+  ALICE: '111111111111111111',
+  BOB: '222222222222222222',
+  CHARLIE: '333333333333333333',
+  DAVE: '444444444444444444',
+  EVE: '555555555555555555',
+} as const;
+
 describe('Wordle Message Parser', () => {
-  describe('Given a Wordle app summary message', () => {
-    it('When parsed, Then extracts all user scores correctly', () => {
+  describe('Given a Wordle app message with Discord mentions', () => {
+    it('When parsed, Then extracts all user Discord IDs correctly', () => {
       const message = `Your group is on a 5 day streak! 🔥 Here are yesterday's results:
 
-🏆 3/6: @Alice Smith @Bob
+🏆 3/6: <@${DISCORD_IDS.ALICE}> <@${DISCORD_IDS.BOB}>
+4/6: <@${DISCORD_IDS.CHARLIE}>
+5/6: <@${DISCORD_IDS.DAVE}> <@${DISCORD_IDS.EVE}>`;
+
+      const result = parseWordleMessage(message);
+
+      expect(result).not.toBeNull();
+      expect(result!.groupStreak).toBe(5);
+      expect(result!.scores).toHaveLength(5);
+      expect(result!.scores).toContainEqual({ discordId: DISCORD_IDS.ALICE, score: 3 });
+      expect(result!.scores).toContainEqual({ discordId: DISCORD_IDS.BOB, score: 3 });
+      expect(result!.scores).toContainEqual({ discordId: DISCORD_IDS.CHARLIE, score: 4 });
+      expect(result!.scores).toContainEqual({ discordId: DISCORD_IDS.DAVE, score: 5 });
+      expect(result!.scores).toContainEqual({ discordId: DISCORD_IDS.EVE, score: 5 });
+    });
+
+    it('When message has nickname mentions, Then extracts IDs correctly', () => {
+      const message = `Your group is on a 2 day streak! 🔥 Here are yesterday's results:
+
+🏆 3/6: <@!${DISCORD_IDS.ALICE}>
+4/6: <@!${DISCORD_IDS.BOB}>`;
+
+      const result = parseWordleMessage(message);
+
+      expect(result).not.toBeNull();
+      expect(result!.scores).toHaveLength(2);
+      expect(result!.scores).toContainEqual({ discordId: DISCORD_IDS.ALICE, score: 3 });
+      expect(result!.scores).toContainEqual({ discordId: DISCORD_IDS.BOB, score: 4 });
+    });
+  });
+
+  describe('Given a Wordle app message with plain usernames (fallback)', () => {
+    it('When parsed, Then extracts usernames correctly', () => {
+      const message = `Your group is on a 5 day streak! 🔥 Here are yesterday's results:
+
+🏆 3/6: @Alice @Bob
 4/6: @Charlie
 5/6: @Dave @Eve`;
 
@@ -15,7 +59,7 @@ describe('Wordle Message Parser', () => {
       expect(result).not.toBeNull();
       expect(result!.groupStreak).toBe(5);
       expect(result!.scores).toHaveLength(5);
-      expect(result!.scores).toContainEqual({ username: 'Alice Smith', score: 3 });
+      expect(result!.scores).toContainEqual({ username: 'Alice', score: 3 });
       expect(result!.scores).toContainEqual({ username: 'Bob', score: 3 });
       expect(result!.scores).toContainEqual({ username: 'Charlie', score: 4 });
       expect(result!.scores).toContainEqual({ username: 'Dave', score: 5 });

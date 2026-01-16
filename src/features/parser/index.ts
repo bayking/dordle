@@ -16,8 +16,8 @@ export async function handleMessage(message: Message): Promise<void> {
 
   const server = await getOrCreateServer(message.guildId);
 
-  for (const { username, score } of parsed.scores) {
-    const user = await getOrCreateUser(server.id, undefined, username);
+  for (const { discordId, username, score } of parsed.scores) {
+    const user = await getOrCreateUser(server.id, discordId, username);
     await recordGame({
       serverId: server.id,
       userId: user.id,
