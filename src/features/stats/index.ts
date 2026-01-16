@@ -11,7 +11,7 @@ export {
   type ScoreDistribution,
 } from '@/features/stats/service';
 
-export { updateServer } from '@/features/stats/repository';
+export { updateServer, deleteServerStats } from '@/features/stats/repository';
 
 import { Score, type UserStats } from '@/features/stats/service';
 

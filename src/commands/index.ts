@@ -9,6 +9,7 @@ import { historyCommand } from '@/commands/history';
 import { chartCommand } from '@/commands/chart';
 import { backfillCommand } from '@/commands/backfill';
 import { configCommand } from '@/commands/config';
+import { resetCommand } from '@/commands/reset';
 
 export interface Command {
   data: SlashCommandBuilder;
@@ -23,6 +24,7 @@ export const commands: Command[] = [
   chartCommand,
   backfillCommand,
   configCommand,
+  resetCommand,
 ];
 
 const commandMap = new Map<string, Command>(

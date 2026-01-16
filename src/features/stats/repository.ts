@@ -122,3 +122,13 @@ export async function findUsersByServer(serverId: number): Promise<User[]> {
     where: eq(users.serverId, serverId),
   });
 }
+
+export async function deleteServerStats(serverId: number): Promise<{ gamesDeleted: number; usersDeleted: number }> {
+  const db = getDb();
+  const deletedGames = await db.delete(games).where(eq(games.serverId, serverId)).returning();
+  const deletedUsers = await db.delete(users).where(eq(users.serverId, serverId)).returning();
+  return {
+    gamesDeleted: deletedGames.length,
+    usersDeleted: deletedUsers.length,
+  };
+}

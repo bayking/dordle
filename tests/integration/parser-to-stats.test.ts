@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { setupTestDb, teardownTestDb } from './setup';
 import { parseWordleMessage } from '@/features/parser/patterns';
-import { getOrCreateServer, getOrCreateUser, recordGame, calculateUserStats, Score } from '@/features/stats';
+import { getOrCreateServer, getOrCreateUser, recordGame, calculateUserStats, Score, deleteServerStats } from '@/features/stats';
 import { getLeaderboard, LeaderboardPeriod } from '@/features/leaderboard';
 
 // Test constants
@@ -257,5 +257,70 @@ describe('Parser to Leaderboard Integration', () => {
     expect(leaderboard[0]!.average).toBe(3);
     expect(leaderboard[1]!.discordId).toBe(DISCORD_IDS.BOB);
     expect(leaderboard[1]!.average).toBe(Infinity);
+  });
+});
+
+describe('Server Stats Reset Integration', () => {
+  beforeEach(() => {
+    setupTestDb();
+  });
+
+  afterEach(() => {
+    teardownTestDb();
+  });
+
+  it('Given a server with games, When reset, Then all games and users deleted', async () => {
+    const server = await getOrCreateServer(TEST_SERVER_DISCORD_ID);
+
+    const alice = await getOrCreateUser(server.id, DISCORD_IDS.ALICE, USERNAMES.ALICE);
+    const bob = await getOrCreateUser(server.id, DISCORD_IDS.BOB, USERNAMES.BOB);
+
+    await recordGame({ serverId: server.id, userId: alice.id, wordleNumber: WORDLE_NUMBERS.GAME_1, score: Score.Three, messageId: 'a1' });
+    await recordGame({ serverId: server.id, userId: alice.id, wordleNumber: WORDLE_NUMBERS.GAME_2, score: Score.Four, messageId: 'a2' });
+    await recordGame({ serverId: server.id, userId: bob.id, wordleNumber: WORDLE_NUMBERS.GAME_1, score: Score.Five, messageId: 'b1' });
+
+    const result = await deleteServerStats(server.id);
+
+    expect(result.gamesDeleted).toBe(3);
+    expect(result.usersDeleted).toBe(2);
+  });
+
+  it('Given a server with games, When reset, Then stats return null', async () => {
+    const server = await getOrCreateServer(TEST_SERVER_DISCORD_ID);
+    const user = await getOrCreateUser(server.id, DISCORD_IDS.ALICE, USERNAMES.ALICE);
+
+    await recordGame({ serverId: server.id, userId: user.id, wordleNumber: WORDLE_NUMBERS.GAME_1, score: Score.Three, messageId: 'a1' });
+
+    const statsBefore = await calculateUserStats(user.id);
+    expect(statsBefore).not.toBeNull();
+
+    await deleteServerStats(server.id);
+
+    const statsAfter = await calculateUserStats(user.id);
+    expect(statsAfter).toBeNull();
+  });
+
+  it('Given a server with games, When reset, Then leaderboard is empty', async () => {
+    const server = await getOrCreateServer(TEST_SERVER_DISCORD_ID);
+    const alice = await getOrCreateUser(server.id, DISCORD_IDS.ALICE, USERNAMES.ALICE);
+
+    await recordGame({ serverId: server.id, userId: alice.id, wordleNumber: WORDLE_NUMBERS.GAME_1, score: Score.Three, messageId: 'a1' });
+
+    const leaderboardBefore = await getLeaderboard(server.id, LeaderboardPeriod.AllTime);
+    expect(leaderboardBefore).toHaveLength(1);
+
+    await deleteServerStats(server.id);
+
+    const leaderboardAfter = await getLeaderboard(server.id, LeaderboardPeriod.AllTime);
+    expect(leaderboardAfter).toHaveLength(0);
+  });
+
+  it('Given an empty server, When reset, Then returns zero counts', async () => {
+    const server = await getOrCreateServer(TEST_SERVER_DISCORD_ID);
+
+    const result = await deleteServerStats(server.id);
+
+    expect(result.gamesDeleted).toBe(0);
+    expect(result.usersDeleted).toBe(0);
   });
 });
