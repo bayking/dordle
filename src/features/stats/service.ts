@@ -20,6 +20,7 @@ export interface UserStats {
   worst: Score;
   currentStreak: number;
   maxStreak: number;
+  streakAverage: number | null;
   distribution: ScoreDistribution;
 }
 
@@ -117,7 +118,7 @@ export async function calculateUserStats(userId: number): Promise<UserStats | nu
     distribution[game.score as Score]++;
   }
 
-  const { currentStreak, maxStreak } = calculateStreaks(games);
+  const { currentStreak, maxStreak, streakAverage } = calculateStreaks(games);
 
   return {
     totalGames: games.length,
@@ -128,17 +129,21 @@ export async function calculateUserStats(userId: number): Promise<UserStats | nu
     worst: Math.max(...games.map((g) => g.score)) as Score,
     currentStreak,
     maxStreak,
+    streakAverage,
     distribution,
   };
 }
 
-function calculateStreaks(games: Game[]): { currentStreak: number; maxStreak: number } {
-  let currentStreak = 0;
+function calculateStreaks(games: Game[]): { currentStreak: number; maxStreak: number; streakAverage: number | null } {
   let maxStreak = 0;
   let streak = 0;
+  let streakStartIndex = 0;
 
-  for (const game of games) {
-    if (game.score !== Score.Fail) {
+  for (let i = 0; i < games.length; i++) {
+    if (games[i]!.score !== Score.Fail) {
+      if (streak === 0) {
+        streakStartIndex = i;
+      }
       streak++;
       maxStreak = Math.max(maxStreak, streak);
     } else {
@@ -146,8 +151,16 @@ function calculateStreaks(games: Game[]): { currentStreak: number; maxStreak: nu
     }
   }
 
-  currentStreak = streak;
-  return { currentStreak, maxStreak };
+  const currentStreak = streak;
+
+  let streakAverage: number | null = null;
+  if (currentStreak > 0) {
+    const streakGames = games.slice(games.length - currentStreak);
+    const sum = streakGames.reduce((acc, g) => acc + g.score, 0);
+    streakAverage = sum / currentStreak;
+  }
+
+  return { currentStreak, maxStreak, streakAverage };
 }
 
 function getWordleNumber(date: Date): number {

@@ -28,6 +28,8 @@ const SCORES = {
     Score.Five, Score.Six, Score.Fail,
   ],
   ALL_FAILURES: [Score.Fail, Score.Fail, Score.Fail],
+  STREAK_AVG_TEST: [Score.Three, Score.Four, Score.Five], // avg 4.0
+  STREAK_AFTER_FAIL: [Score.Fail, Score.Three, Score.Four], // current streak avg 3.5
 } as const;
 
 const EXPECTED = {
@@ -66,6 +68,14 @@ const EXPECTED = {
     winRate: 0,
     average: null,
     currentStreak: 0,
+  },
+  STREAK_AVG_TEST: {
+    currentStreak: 3,
+    streakAverage: 4.0,
+  },
+  STREAK_AFTER_FAIL: {
+    currentStreak: 2,
+    streakAverage: 3.5,
   },
 } as const;
 
@@ -179,6 +189,44 @@ describe('Stats Calculations', () => {
       expect(stats!.winRate).toBe(EXPECTED.ALL_FAILURES.winRate);
       expect(stats!.average).toBe(EXPECTED.ALL_FAILURES.average);
       expect(stats!.currentStreak).toBe(EXPECTED.ALL_FAILURES.currentStreak);
+    });
+  });
+
+  describe('Given streak average calculation', () => {
+    it('When all games are wins, Then streak average is average of all scores', async () => {
+      mockFindGamesByUserId.mockResolvedValue(
+        createMockGames(SCORES.STREAK_AVG_TEST)
+      );
+
+      const stats = await calculateUserStats(TEST_USER_ID);
+
+      expect(stats).not.toBeNull();
+      expect(stats!.currentStreak).toBe(EXPECTED.STREAK_AVG_TEST.currentStreak);
+      expect(stats!.streakAverage).toBe(EXPECTED.STREAK_AVG_TEST.streakAverage);
+    });
+
+    it('When streak starts after a fail, Then streak average only includes current streak', async () => {
+      mockFindGamesByUserId.mockResolvedValue(
+        createMockGames(SCORES.STREAK_AFTER_FAIL)
+      );
+
+      const stats = await calculateUserStats(TEST_USER_ID);
+
+      expect(stats).not.toBeNull();
+      expect(stats!.currentStreak).toBe(EXPECTED.STREAK_AFTER_FAIL.currentStreak);
+      expect(stats!.streakAverage).toBe(EXPECTED.STREAK_AFTER_FAIL.streakAverage);
+    });
+
+    it('When no current streak, Then streak average is null', async () => {
+      mockFindGamesByUserId.mockResolvedValue(
+        createMockGames(SCORES.ALL_FAILURES)
+      );
+
+      const stats = await calculateUserStats(TEST_USER_ID);
+
+      expect(stats).not.toBeNull();
+      expect(stats!.currentStreak).toBe(0);
+      expect(stats!.streakAverage).toBeNull();
     });
   });
 });
