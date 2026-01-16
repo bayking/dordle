@@ -1,6 +1,7 @@
 import { EmbedBuilder, type Client } from 'discord.js';
-import type { DailySummary, WeeklySummary, MonthlySummary } from './service';
+import type { DailySummary, WeeklySummary, MonthlySummary, EloChange } from './service';
 import { Score } from '@/features/stats';
+import { PROVISIONAL_GAMES } from '@/features/elo';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
@@ -63,6 +64,17 @@ export async function formatDailySummaryEmbed(
     lines.push(`**${formatScore(score)}/6:** ${names.join(', ')}`);
   }
 
+  // Add ELO changes section if available
+  if (summary.eloChanges.length > 0) {
+    lines.push('\n**ELO Changes:**');
+    for (const change of summary.eloChanges) {
+      const name = await resolveUsername(client, change.discordId, change.wordleUsername);
+      const arrow = change.change >= 0 ? '📈' : '📉';
+      const sign = change.change >= 0 ? '+' : '';
+      lines.push(`${arrow} ${name}: ${change.oldElo} → ${change.newElo} (${sign}${change.change})`);
+    }
+  }
+
   embed.setDescription(lines.join('\n'));
 
   if (summary.wordleNumber) {
@@ -89,16 +101,37 @@ export async function formatWeeklySummaryEmbed(
     `**${summary.totalGames}** games played by **${summary.uniquePlayers} players**\n`,
   ];
 
+  // Rankings by ELO
+  lines.push('**Rankings:**');
   for (let i = 0; i < Math.min(summary.rankings.length, 10); i++) {
     const player = summary.rankings[i]!;
     const medal = MEDALS[i] ?? `${i + 1}.`;
     const name = await resolveUsername(client, player.discordId, player.wordleUsername);
     const avg = player.average === Infinity ? 'X' : player.average.toFixed(2);
     const streak = player.currentStreak > 0 ? ` 🔥${player.currentStreak}` : '';
-    lines.push(`${medal} **${name}** - ${avg} avg, ${player.gamesPlayed} games${streak}`);
+    const provisional = player.eloGamesPlayed <= PROVISIONAL_GAMES ? '*' : '';
+    lines.push(`${medal} **${name}** - ${player.elo}${provisional} ELO │ ${avg} avg │ ${player.gamesPlayed} games${streak}`);
+  }
+
+  // Top ELO movers
+  if (summary.topGainers.length > 0) {
+    lines.push('\n**Biggest Gains:**');
+    for (const mover of summary.topGainers) {
+      const name = await resolveUsername(client, mover.discordId, mover.wordleUsername);
+      lines.push(`🚀 ${name}: +${mover.totalChange} ELO (${mover.startElo} → ${mover.endElo})`);
+    }
+  }
+
+  if (summary.topLosers.length > 0) {
+    lines.push('\n**Biggest Drops:**');
+    for (const mover of summary.topLosers) {
+      const name = await resolveUsername(client, mover.discordId, mover.wordleUsername);
+      lines.push(`⬇️ ${name}: ${mover.totalChange} ELO (${mover.startElo} → ${mover.endElo})`);
+    }
   }
 
   embed.setDescription(lines.join('\n'));
+  embed.setFooter({ text: '* Provisional rating (< 10 games)' });
 
   return embed;
 }

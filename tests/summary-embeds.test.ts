@@ -47,6 +47,7 @@ describe('Daily Summary Embed', () => {
         { userId: 3, discordId: DISCORD_IDS.CHARLIE, wordleUsername: USERNAMES.CHARLIE, score: Score.Five },
       ],
       groupStreak: 5,
+      eloChanges: [],
     };
 
     const { formatDailySummaryEmbed } = await import('@/features/summaries/embeds');
@@ -68,6 +69,7 @@ describe('Daily Summary Embed', () => {
       winners: [],
       scores: [],
       groupStreak: 0,
+      eloChanges: [],
     };
 
     const { formatDailySummaryEmbed } = await import('@/features/summaries/embeds');
@@ -90,6 +92,7 @@ describe('Daily Summary Embed', () => {
         { userId: 2, discordId: DISCORD_IDS.BOB, wordleUsername: USERNAMES.BOB, score: Score.Three },
       ],
       groupStreak: 2,
+      eloChanges: [],
     };
 
     const { formatDailySummaryEmbed } = await import('@/features/summaries/embeds');
@@ -108,10 +111,12 @@ describe('Weekly Summary Embed', () => {
       totalGames: 15,
       uniquePlayers: 3,
       rankings: [
-        { userId: 1, discordId: DISCORD_IDS.ALICE, wordleUsername: USERNAMES.ALICE, gamesPlayed: 5, average: 3.2, rank: 1 },
-        { userId: 2, discordId: DISCORD_IDS.BOB, wordleUsername: USERNAMES.BOB, gamesPlayed: 5, average: 3.8, rank: 2 },
-        { userId: 3, discordId: DISCORD_IDS.CHARLIE, wordleUsername: USERNAMES.CHARLIE, gamesPlayed: 5, average: 4.2, rank: 3 },
+        { userId: 1, discordId: DISCORD_IDS.ALICE, wordleUsername: USERNAMES.ALICE, gamesPlayed: 5, average: 3.2, rank: 1, currentStreak: 5, maxStreak: 5, elo: 1600, eloGamesPlayed: 20 },
+        { userId: 2, discordId: DISCORD_IDS.BOB, wordleUsername: USERNAMES.BOB, gamesPlayed: 5, average: 3.8, rank: 2, currentStreak: 3, maxStreak: 4, elo: 1550, eloGamesPlayed: 15 },
+        { userId: 3, discordId: DISCORD_IDS.CHARLIE, wordleUsername: USERNAMES.CHARLIE, gamesPlayed: 5, average: 4.2, rank: 3, currentStreak: 0, maxStreak: 2, elo: 1480, eloGamesPlayed: 12 },
       ],
+      topGainers: [],
+      topLosers: [],
     };
 
     const { formatWeeklySummaryEmbed } = await import('@/features/summaries/embeds');
@@ -132,6 +137,8 @@ describe('Weekly Summary Embed', () => {
       totalGames: 0,
       uniquePlayers: 0,
       rankings: [],
+      topGainers: [],
+      topLosers: [],
     };
 
     const { formatWeeklySummaryEmbed } = await import('@/features/summaries/embeds');

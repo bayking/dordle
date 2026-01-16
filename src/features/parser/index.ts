@@ -2,6 +2,7 @@ import type { Message } from 'discord.js';
 import { parseWordleMessage } from '@/features/parser/patterns';
 import { resolveUser } from '@/features/parser/resolver';
 import { getOrCreateServer, getOrCreateUser, recordGame } from '@/features/stats';
+import { processWordleElo } from '@/features/elo';
 import { log } from '@/infrastructure/logger';
 
 export { parseWordleMessage } from '@/features/parser/patterns';
@@ -25,6 +26,8 @@ export async function handleMessage(message: Message): Promise<void> {
 
   const server = await getOrCreateServer(message.guildId);
 
+  let wordleNumber: number | null = null;
+
   for (const { discordId, username, score } of parsed.scores) {
     const resolved = await resolveUser(message.guild, { discordId, username });
     log.debug({ discordId, username, resolved }, 'resolved user');
@@ -41,8 +44,18 @@ export async function handleMessage(message: Message): Promise<void> {
 
     if (game) {
       log.info({ userId: user.id, wordleNumber: game.wordleNumber, score }, 'recorded game');
+      wordleNumber = game.wordleNumber;
     } else {
       log.debug({ userId: user.id, score }, 'duplicate game skipped');
+    }
+  }
+
+  // Calculate ELO after all games for this wordle are recorded
+  if (wordleNumber !== null) {
+    try {
+      await processWordleElo(server.id, wordleNumber, message.createdAt);
+    } catch (error) {
+      log.error({ error, serverId: server.id, wordleNumber }, 'Failed to process ELO');
     }
   }
 }

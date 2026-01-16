@@ -1,10 +1,39 @@
-import { createCanvas } from '@napi-rs/canvas';
+import { createCanvas, GlobalFonts } from '@napi-rs/canvas';
 import { Chart, registerables } from 'chart.js';
 import { Score, type ScoreDistribution } from '@/features/stats';
 import type { LeaderboardEntry } from '@/features/leaderboard';
 import * as repo from '@/features/charts/repository';
+import { existsSync } from 'fs';
 
 Chart.register(...registerables);
+
+// Register system fonts for chart text rendering
+const FONT_PATHS = [
+  // Linux
+  '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+  '/usr/share/fonts/TTF/DejaVuSans.ttf',
+  // macOS
+  '/System/Library/Fonts/Helvetica.ttc',
+  '/Library/Fonts/Arial.ttf',
+  // Windows
+  'C:\\Windows\\Fonts\\arial.ttf',
+];
+
+let fontRegistered = false;
+for (const fontPath of FONT_PATHS) {
+  if (existsSync(fontPath)) {
+    try {
+      GlobalFonts.registerFromPath(fontPath, 'sans-serif');
+      fontRegistered = true;
+      break;
+    } catch {
+      // Continue to next font
+    }
+  }
+}
+
+// Set default font for Chart.js
+Chart.defaults.font.family = fontRegistered ? 'sans-serif' : 'Arial';
 
 export interface LeaderboardChartEntry {
   name: string;

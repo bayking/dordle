@@ -26,11 +26,68 @@ No manual input required from players - just keep playing Wordle as usual!
 ## Features
 
 - **Automatic Score Tracking** - Listens to Wordle app messages and records scores automatically
+- **ELO Rating System** - Competitive ranking system that compares players head-to-head
 - **User Statistics** - Win rate, average score, current/max streaks, score distribution
-- **Leaderboards** - All-time, weekly, and monthly rankings with tie handling
+- **Leaderboards** - All-time, weekly, and monthly rankings sorted by ELO
 - **Charts** - Visual score distribution and trend charts
-- **Auto Summaries** - Daily winners, weekly rankings, monthly champions
+- **Auto Summaries** - Daily winners with ELO changes, weekly rankings, monthly champions
 - **Backfill** - Import historical scores from past messages
+
+## ELO Rating System
+
+Dordle uses an ELO-based rating system adapted for Wordle's unique format. Unlike traditional head-to-head games, Wordle players compete against the same puzzle, so the system uses **pairwise comparison**.
+
+### How It Works
+
+1. **Starting ELO**: All players begin at 1500
+2. **Pairwise Comparison**: Each player is compared head-to-head with every other player who played that day
+   - If you scored better → Win (1.0 points)
+   - If you tied → Draw (0.5 points)
+   - If you scored worse → Loss (0.0 points)
+3. **Expected Score**: Based on ELO difference between players (capped at 0.1-0.9 to prevent extreme swings)
+4. **ELO Change**: `K × (actualScore - expectedScore)`
+
+### K-Factor Tiers
+
+The K-factor determines how much ratings can change per game:
+
+| Games Played | K-Factor | Status |
+|--------------|----------|--------|
+| 0-10 | 40 | Provisional |
+| 11-30 | 32 | Establishing |
+| 31+ | 24 | Established |
+
+New players' ratings move faster, while experienced players have more stable ratings.
+
+### Fail Penalty
+
+Failing a puzzle (X/6) carries extra consequences:
+- Treated as score 9 for comparisons (always loses to any success)
+- Additional -3 ELO penalty
+
+### Inactivity Decay
+
+Players who don't play for 7+ days lose 10 ELO per week (floor: 1200). This keeps the leaderboard competitive and rewards consistent play.
+
+### Example
+
+**Daily Results:**
+- Alice: 3/6 (1600 ELO)
+- Bob: 4/6 (1550 ELO)
+- Charlie: 5/6 (1480 ELO)
+
+**Alice's Pairwise Results:**
+- vs Bob: Win (scored 3, Bob scored 4)
+- vs Charlie: Win (scored 3, Charlie scored 5)
+- Actual score: 1.0 (2 wins / 2 opponents)
+
+Alice's expected score vs the average opponent ELO would be ~0.62, so she gains ELO for outperforming expectations.
+
+### Viewing ELO
+
+- `/leaderboard` - Rankings sorted by ELO
+- `/stats` - Shows your current ELO
+- Daily summaries show ELO changes for each player
 
 ## Self-Hosting
 

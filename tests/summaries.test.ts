@@ -9,6 +9,7 @@ import {
   type MonthlySummary,
 } from '@/features/summaries/service';
 import * as repo from '@/features/summaries/repository';
+import * as eloRepo from '@/features/elo';
 import { Score } from '@/features/stats';
 import type { Game, User } from '@/db/schema';
 
@@ -18,9 +19,16 @@ vi.mock('@/features/summaries/repository', () => ({
   getServerGroupStreak: vi.fn(),
 }));
 
+vi.mock('@/features/elo', () => ({
+  getEloChangesForWordle: vi.fn(),
+  getEloHistoryForDateRange: vi.fn(),
+}));
+
 const mockFindGamesByServerAndDateRange = repo.findGamesByServerAndDateRange as Mock;
 const mockFindUsersByServer = repo.findUsersByServer as Mock;
 const mockGetServerGroupStreak = repo.getServerGroupStreak as Mock;
+const mockGetEloChangesForWordle = eloRepo.getEloChangesForWordle as Mock;
+const mockGetEloHistoryForDateRange = eloRepo.getEloHistoryForDateRange as Mock;
 
 // Test constants
 const TEST_SERVER_ID = 1;
@@ -33,6 +41,9 @@ const USERS: Record<string, User> = {
     discordId: '111',
     wordleUsername: 'Alice',
     createdAt: new Date(),
+    elo: 1600,
+    eloGamesPlayed: 20,
+    lastPlayedAt: null,
   },
   BOB: {
     id: 2,
@@ -40,6 +51,9 @@ const USERS: Record<string, User> = {
     discordId: '222',
     wordleUsername: 'Bob',
     createdAt: new Date(),
+    elo: 1550,
+    eloGamesPlayed: 15,
+    lastPlayedAt: null,
   },
   CHARLIE: {
     id: 3,
@@ -47,6 +61,9 @@ const USERS: Record<string, User> = {
     discordId: '333',
     wordleUsername: 'Charlie',
     createdAt: new Date(),
+    elo: 1480,
+    eloGamesPlayed: 12,
+    lastPlayedAt: null,
   },
 };
 
@@ -70,6 +87,9 @@ function createGame(
 describe('Summary Generation', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    // Default ELO mocks - return empty arrays
+    mockGetEloChangesForWordle.mockResolvedValue([]);
+    mockGetEloHistoryForDateRange.mockResolvedValue([]);
   });
 
   describe('Daily Summary', () => {
@@ -87,12 +107,10 @@ describe('Summary Generation', () => {
 
       expect(summary.wordleNumber).toBe(1000);
       expect(summary.participants).toBe(3);
-      expect(summary.winner).toEqual({
-        userId: USERS.ALICE.id,
-        discordId: USERS.ALICE.discordId,
-        wordleUsername: USERS.ALICE.wordleUsername,
-        score: Score.Three,
-      });
+      expect(summary.winner?.userId).toBe(USERS.ALICE.id);
+      expect(summary.winner?.discordId).toBe(USERS.ALICE.discordId);
+      expect(summary.winner?.wordleUsername).toBe(USERS.ALICE.wordleUsername);
+      expect(summary.winner?.score).toBe(Score.Three);
       expect(summary.groupStreak).toBe(5);
       expect(summary.scores).toHaveLength(3);
     });

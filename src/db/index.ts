@@ -63,6 +63,9 @@ export function initializeDb() {
       server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
       discord_id TEXT NOT NULL,
       wordle_username TEXT,
+      elo INTEGER NOT NULL DEFAULT 1500,
+      elo_games_played INTEGER NOT NULL DEFAULT 0,
+      last_played_at INTEGER,
       created_at INTEGER NOT NULL DEFAULT (unixepoch()),
       UNIQUE(server_id, discord_id)
     );
@@ -85,9 +88,26 @@ export function initializeDb() {
       last_posted_at INTEGER
     );
 
+    CREATE TABLE IF NOT EXISTS elo_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+      wordle_number INTEGER NOT NULL,
+      old_elo INTEGER NOT NULL,
+      new_elo INTEGER NOT NULL,
+      change INTEGER NOT NULL,
+      player_score INTEGER NOT NULL,
+      avg_score INTEGER NOT NULL,
+      participants INTEGER NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      UNIQUE(user_id, wordle_number)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_games_server_user ON games(server_id, user_id);
     CREATE INDEX IF NOT EXISTS idx_games_played_at ON games(played_at);
     CREATE INDEX IF NOT EXISTS idx_users_server ON users(server_id);
+    CREATE INDEX IF NOT EXISTS idx_elo_history_user ON elo_history(user_id);
+    CREATE INDEX IF NOT EXISTS idx_elo_history_server_wordle ON elo_history(server_id, wordle_number);
   `);
 
   return database;

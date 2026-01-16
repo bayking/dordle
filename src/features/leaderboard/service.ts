@@ -37,6 +37,8 @@ export interface LeaderboardEntry {
   winRate: number;
   currentStreak: number;
   maxStreak: number;
+  elo: number;
+  eloGamesPlayed: number;
 }
 
 export async function getLeaderboard(
@@ -77,19 +79,25 @@ export async function getLeaderboard(
       winRate: (winningGames.length / userGames.length) * 100,
       currentStreak,
       maxStreak,
+      elo: user.elo,
+      eloGamesPlayed: user.eloGamesPlayed,
     });
   }
 
-  entries.sort((a, b) => a.average - b.average);
+  // Sort by ELO (higher is better), then by average (lower is better) as tiebreaker
+  entries.sort((a, b) => {
+    if (b.elo !== a.elo) return b.elo - a.elo;
+    return a.average - b.average;
+  });
 
   const rankedEntries: LeaderboardEntry[] = [];
   let currentRank = 1;
-  let previousAverage: number | null = null;
+  let previousElo: number | null = null;
 
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i]!;
 
-    if (previousAverage !== null && entry.average !== previousAverage) {
+    if (previousElo !== null && entry.elo !== previousElo) {
       currentRank = i + 1;
     }
 
@@ -98,7 +106,7 @@ export async function getLeaderboard(
       ...entry,
     });
 
-    previousAverage = entry.average;
+    previousElo = entry.elo;
   }
 
   return rankedEntries;

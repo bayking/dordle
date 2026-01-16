@@ -8,6 +8,13 @@ import {
   generateWeeklySummary,
   generateMonthlySummary,
 } from '@/features/summaries/service';
+import {
+  getInactiveUsers,
+  applyEloDecay,
+  DECAY_THRESHOLD_DAYS,
+  DECAY_AMOUNT,
+} from '@/features/elo';
+import { log } from '@/infrastructure/logger';
 
 export function isTargetHourInTimezone(date: Date, timezone: string, targetHour: number): boolean {
   try {
@@ -161,8 +168,25 @@ async function runWeeklySummaries(config: SchedulerConfig, now: Date): Promise<v
     if (dayOfWeek !== config.weeklyDay) continue;
     if (!isTargetHourInTimezone(now, timezone, config.weeklyHour)) continue;
 
+    // Apply ELO decay for inactive users
+    await applyWeeklyEloDecay(server.id, now);
+
     await runSummaryForServer(server.id, server.summaryChannelId, SummaryPeriod.Weekly, config, now);
     await updateLastPostedAt(server.id, SummaryPeriod.Weekly, now);
+  }
+}
+
+async function applyWeeklyEloDecay(serverId: number, now: Date): Promise<void> {
+  const inactiveSince = new Date(now.getTime() - DECAY_THRESHOLD_DAYS * 24 * 60 * 60 * 1000);
+  const inactiveUsers = await getInactiveUsers(serverId, inactiveSince);
+
+  if (inactiveUsers.length > 0) {
+    const userIds = inactiveUsers.map((u) => u.id);
+    await applyEloDecay(userIds, DECAY_AMOUNT);
+    log.info(
+      { serverId, usersDecayed: userIds.length, decayAmount: DECAY_AMOUNT },
+      'Applied weekly ELO decay'
+    );
   }
 }
 

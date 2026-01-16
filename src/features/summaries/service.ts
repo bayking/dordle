@@ -1,6 +1,7 @@
 import { Score } from '@/features/stats';
 import * as repo from '@/features/summaries/repository';
-import type { Game, User } from '@/db/schema';
+import { getEloChangesForWordle, getEloHistoryForDateRange } from '@/features/elo';
+import type { Game, User, EloHistory } from '@/db/schema';
 
 export enum SummaryPeriod {
   Daily = 'daily',
@@ -13,6 +14,17 @@ export interface PlayerScore {
   discordId: string;
   wordleUsername: string | null;
   score: Score;
+  eloChange?: number;
+  newElo?: number;
+}
+
+export interface EloChange {
+  userId: number;
+  discordId: string;
+  wordleUsername: string | null;
+  oldElo: number;
+  newElo: number;
+  change: number;
 }
 
 export interface DailySummary {
@@ -22,6 +34,7 @@ export interface DailySummary {
   winners: PlayerScore[];
   scores: PlayerScore[];
   groupStreak: number;
+  eloChanges: EloChange[];
 }
 
 export interface RankedPlayer {
@@ -33,12 +46,25 @@ export interface RankedPlayer {
   rank: number;
   currentStreak: number;
   maxStreak: number;
+  elo: number;
+  eloGamesPlayed: number;
+}
+
+export interface EloMover {
+  userId: number;
+  discordId: string;
+  wordleUsername: string | null;
+  totalChange: number;
+  startElo: number;
+  endElo: number;
 }
 
 export interface WeeklySummary {
   totalGames: number;
   uniquePlayers: number;
   rankings: RankedPlayer[];
+  topGainers: EloMover[];
+  topLosers: EloMover[];
 }
 
 export interface Champion {
@@ -142,20 +168,46 @@ export async function generateDailySummary(
       winners: [],
       scores: [],
       groupStreak,
+      eloChanges: [],
     };
   }
 
   const wordleNumber = games[0]!.wordleNumber;
 
+  // Fetch ELO changes for this wordle
+  const eloHistoryRecords = await getEloChangesForWordle(serverId, wordleNumber);
+  const eloByUser = new Map<number, EloHistory>();
+  for (const record of eloHistoryRecords) {
+    eloByUser.set(record.userId, record);
+  }
+
   const scores: PlayerScore[] = games.map((game) => {
     const user = userMap.get(game.userId);
+    const eloRecord = eloByUser.get(game.userId);
     return {
       userId: game.userId,
       discordId: user?.discordId ?? '',
       wordleUsername: user?.wordleUsername ?? null,
       score: game.score,
+      eloChange: eloRecord?.change,
+      newElo: eloRecord?.newElo,
     };
   });
+
+  const eloChanges: EloChange[] = eloHistoryRecords.map((record) => {
+    const user = userMap.get(record.userId);
+    return {
+      userId: record.userId,
+      discordId: user?.discordId ?? '',
+      wordleUsername: user?.wordleUsername ?? null,
+      oldElo: record.oldElo,
+      newElo: record.newElo,
+      change: record.change,
+    };
+  });
+
+  // Sort by change descending (biggest gains first)
+  eloChanges.sort((a, b) => b.change - a.change);
 
   const winningGames = games.filter((g) => g.score !== Score.Fail);
   const bestScore = winningGames.length > 0
@@ -173,6 +225,7 @@ export async function generateDailySummary(
     winners,
     scores,
     groupStreak,
+    eloChanges,
   };
 }
 
@@ -181,9 +234,10 @@ export async function generateWeeklySummary(
   referenceDate: Date
 ): Promise<WeeklySummary> {
   const { start, end } = getLastWeek(referenceDate);
-  const [games, users] = await Promise.all([
+  const [games, users, eloHistory] = await Promise.all([
     repo.findGamesByServerAndDateRange(serverId, start, end),
     repo.findUsersByServer(serverId),
+    getEloHistoryForDateRange(serverId, start, end),
   ]);
 
   const userMap = buildUserMap(users);
@@ -193,6 +247,8 @@ export async function generateWeeklySummary(
       totalGames: 0,
       uniquePlayers: 0,
       rankings: [],
+      topGainers: [],
+      topLosers: [],
     };
   }
 
@@ -221,20 +277,62 @@ export async function generateWeeklySummary(
       average,
       currentStreak,
       maxStreak,
+      elo: user?.elo ?? 1500,
+      eloGamesPlayed: user?.eloGamesPlayed ?? 0,
     });
   }
 
-  playerStats.sort((a, b) => a.average - b.average);
+  // Sort by ELO (higher is better), then by average (lower is better)
+  playerStats.sort((a, b) => {
+    if (b.elo !== a.elo) return b.elo - a.elo;
+    return a.average - b.average;
+  });
 
   const rankings: RankedPlayer[] = playerStats.map((player, index) => ({
     ...player,
     rank: index + 1,
   }));
 
+  // Calculate ELO movers from history
+  const eloChangesPerUser = new Map<number, { total: number; first: number; last: number }>();
+  for (const record of eloHistory) {
+    const existing = eloChangesPerUser.get(record.userId);
+    if (existing) {
+      existing.total += record.change;
+      existing.last = record.newElo;
+    } else {
+      eloChangesPerUser.set(record.userId, {
+        total: record.change,
+        first: record.oldElo,
+        last: record.newElo,
+      });
+    }
+  }
+
+  const movers: EloMover[] = [];
+  for (const [userId, changes] of eloChangesPerUser) {
+    const user = userMap.get(userId);
+    movers.push({
+      userId,
+      discordId: user?.discordId ?? '',
+      wordleUsername: user?.wordleUsername ?? null,
+      totalChange: changes.total,
+      startElo: changes.first,
+      endElo: changes.last,
+    });
+  }
+
+  // Sort by total change
+  const sortedByGain = [...movers].sort((a, b) => b.totalChange - a.totalChange);
+  const topGainers = sortedByGain.filter((m) => m.totalChange > 0).slice(0, 3);
+  const topLosers = sortedByGain.filter((m) => m.totalChange < 0).slice(-3).reverse();
+
   return {
     totalGames: games.length,
     uniquePlayers: gamesByUser.size,
     rankings,
+    topGainers,
+    topLosers,
   };
 }
 

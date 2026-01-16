@@ -25,6 +25,9 @@ export function setupTestDb(): BunSQLiteDatabase<typeof schema> {
       discord_id TEXT NOT NULL,
       wordle_username TEXT,
       created_at INTEGER NOT NULL,
+      elo INTEGER NOT NULL DEFAULT 1500,
+      elo_games_played INTEGER NOT NULL DEFAULT 0,
+      last_played_at INTEGER,
       UNIQUE(server_id, discord_id)
     );
 
@@ -45,6 +48,21 @@ export function setupTestDb(): BunSQLiteDatabase<typeof schema> {
       type TEXT NOT NULL,
       last_posted_at INTEGER,
       UNIQUE(server_id, type)
+    );
+
+    CREATE TABLE elo_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+      wordle_number INTEGER NOT NULL,
+      old_elo INTEGER NOT NULL,
+      new_elo INTEGER NOT NULL,
+      change INTEGER NOT NULL,
+      player_score INTEGER NOT NULL,
+      avg_score INTEGER NOT NULL,
+      participants INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      UNIQUE(user_id, wordle_number)
     );
   `);
 

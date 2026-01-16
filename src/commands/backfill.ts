@@ -6,6 +6,7 @@ import {
 } from 'discord.js';
 import { getOrCreateServer } from '@/features/stats';
 import { handleMessage } from '@/features/parser';
+import { recalculateServerElo } from '@/features/elo';
 import { log } from '@/infrastructure/logger';
 
 export const backfillCommand = {
@@ -77,8 +78,16 @@ export const backfillCommand = {
       for (const message of messages.values()) {
         if (message.createdAt < cutoffDate) {
           log.info({ processed, botMessages }, 'backfill complete (reached cutoff)');
+
+          // Recalculate ELO for all games
           await interaction.editReply({
-            content: `Backfill complete. Processed ${botMessages} bot messages out of ${processed} total.`,
+            content: `Backfill complete. Processed ${botMessages} bot messages. Recalculating ELO...`,
+          });
+
+          const eloResult = await recalculateServerElo(server.id);
+
+          await interaction.editReply({
+            content: `Backfill complete. Processed ${botMessages} bot messages out of ${processed} total.\nELO recalculated for ${eloResult.wordlesProcessed} wordles across ${eloResult.playersAffected.size} players.`,
           });
           return;
         }
@@ -96,8 +105,16 @@ export const backfillCommand = {
     }
 
     log.info({ processed, botMessages }, 'backfill complete (end of channel)');
+
+    // Recalculate ELO for all games
     await interaction.editReply({
-      content: `Backfill complete. Processed ${botMessages} bot messages out of ${processed} total.`,
+      content: `Backfill complete. Processed ${botMessages} bot messages. Recalculating ELO...`,
+    });
+
+    const eloResult = await recalculateServerElo(server.id);
+
+    await interaction.editReply({
+      content: `Backfill complete. Processed ${botMessages} bot messages out of ${processed} total.\nELO recalculated for ${eloResult.wordlesProcessed} wordles across ${eloResult.playersAffected.size} players.`,
     });
   },
 };

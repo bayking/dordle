@@ -194,7 +194,7 @@ describe('Parser to Leaderboard Integration', () => {
     teardownTestDb();
   });
 
-  it('Given multiple users with games, When leaderboard generated, Then ranked by average', async () => {
+  it('Given multiple users with games, When leaderboard generated, Then ranked by ELO with average as tiebreaker', async () => {
     const server = await getOrCreateServer(TEST_SERVER_DISCORD_ID);
 
     const alice = await getOrCreateUser(server.id, DISCORD_IDS.ALICE, USERNAMES.ALICE);
@@ -216,13 +216,14 @@ describe('Parser to Leaderboard Integration', () => {
     const leaderboard = await getLeaderboard(server.id, LeaderboardPeriod.AllTime);
 
     expect(leaderboard).toHaveLength(3);
+    // All users have same ELO (1500), so all rank 1, sorted by average
     expect(leaderboard[0]!.discordId).toBe(DISCORD_IDS.ALICE);
     expect(leaderboard[0]!.rank).toBe(1);
     expect(leaderboard[0]!.average).toBe(2.5);
     expect(leaderboard[1]!.discordId).toBe(DISCORD_IDS.CHARLIE);
-    expect(leaderboard[1]!.rank).toBe(2);
+    expect(leaderboard[1]!.rank).toBe(1); // Same ELO = same rank
     expect(leaderboard[2]!.discordId).toBe(DISCORD_IDS.BOB);
-    expect(leaderboard[2]!.rank).toBe(3);
+    expect(leaderboard[2]!.rank).toBe(1); // Same ELO = same rank
   });
 
   it('Given users with tied averages, When leaderboard generated, Then same rank assigned', async () => {
@@ -253,6 +254,7 @@ describe('Parser to Leaderboard Integration', () => {
     const leaderboard = await getLeaderboard(server.id, LeaderboardPeriod.AllTime);
 
     expect(leaderboard).toHaveLength(2);
+    // Same ELO, sorted by average (Infinity comes last)
     expect(leaderboard[0]!.discordId).toBe(DISCORD_IDS.ALICE);
     expect(leaderboard[0]!.average).toBe(3);
     expect(leaderboard[1]!.discordId).toBe(DISCORD_IDS.BOB);

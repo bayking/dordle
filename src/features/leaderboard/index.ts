@@ -7,6 +7,7 @@ export {
 } from '@/features/leaderboard/service';
 
 import { LeaderboardPeriod, type LeaderboardEntry } from '@/features/leaderboard/service';
+import { PROVISIONAL_GAMES } from '@/features/elo';
 
 const PERIOD_TITLES: Record<LeaderboardPeriod, string> = {
   [LeaderboardPeriod.AllTime]: 'All-Time Leaderboard',
@@ -28,14 +29,18 @@ export async function formatLeaderboardEmbed(
     const name = await resolveUsername(client, entry);
     const avg = entry.average === Infinity ? 'N/A' : entry.average.toFixed(2);
     const streak = entry.currentStreak > 0 ? ` 🔥${entry.currentStreak}` : '';
+    const provisional = entry.eloGamesPlayed <= PROVISIONAL_GAMES ? '*' : '';
 
-    lines.push(`${medal} **${name}** - ${avg} avg, ${entry.gamesPlayed} games${streak}`);
+    lines.push(
+      `${medal} **${name}** - ${entry.elo}${provisional} ELO │ ${avg} avg │ ${entry.gamesPlayed} games${streak}`
+    );
   }
 
   return new EmbedBuilder()
     .setTitle(PERIOD_TITLES[period])
     .setColor(0x6aaa64)
-    .setDescription(lines.join('\n') || 'No games played yet.');
+    .setDescription(lines.join('\n') || 'No games played yet.')
+    .setFooter({ text: '* Provisional rating (< 10 games)' });
 }
 
 async function resolveUsername(client: Client, entry: LeaderboardEntry): Promise<string> {

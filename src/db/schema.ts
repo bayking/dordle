@@ -20,6 +20,9 @@ export const users = sqliteTable(
       .references(() => servers.id, { onDelete: 'cascade' }),
     discordId: text('discord_id').notNull(),
     wordleUsername: text('wordle_username'),
+    elo: integer('elo').notNull().default(1500),
+    eloGamesPlayed: integer('elo_games_played').notNull().default(0),
+    lastPlayedAt: integer('last_played_at', { mode: 'timestamp' }),
     createdAt: integer('created_at', { mode: 'timestamp' })
       .notNull()
       .$defaultFn(() => new Date()),
@@ -60,6 +63,30 @@ export const scheduledPosts = sqliteTable(
   (table) => [unique().on(table.serverId, table.type)]
 );
 
+export const eloHistory = sqliteTable(
+  'elo_history',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    serverId: integer('server_id')
+      .notNull()
+      .references(() => servers.id, { onDelete: 'cascade' }),
+    wordleNumber: integer('wordle_number').notNull(),
+    oldElo: integer('old_elo').notNull(),
+    newElo: integer('new_elo').notNull(),
+    change: integer('change').notNull(),
+    playerScore: integer('player_score').notNull(),
+    avgScore: integer('avg_score').notNull(), // stored as score * 100 for precision
+    participants: integer('participants').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => [unique().on(table.userId, table.wordleNumber)]
+);
+
 export type Server = typeof servers.$inferSelect;
 export type NewServer = typeof servers.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -68,3 +95,5 @@ export type Game = typeof games.$inferSelect;
 export type NewGame = typeof games.$inferInsert;
 export type ScheduledPost = typeof scheduledPosts.$inferSelect;
 export type NewScheduledPost = typeof scheduledPosts.$inferInsert;
+export type EloHistory = typeof eloHistory.$inferSelect;
+export type NewEloHistory = typeof eloHistory.$inferInsert;
