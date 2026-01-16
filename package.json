@@ -1,0 +1,43 @@
+{
+  "name": "dordle",
+  "version": "1.0.0",
+  "description": "Discord bot that tracks Wordle statistics with analytics, leaderboards, and automated summaries",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "db:generate": "bunx drizzle-kit generate",
+    "db:migrate": "bunx drizzle-kit migrate",
+    "db:push": "bunx drizzle-kit push",
+    "db:studio": "bunx drizzle-kit studio"
+  },
+  "keywords": [
+    "discord",
+    "wordle",
+    "bot",
+    "statistics",
+    "leaderboard"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@napi-rs/canvas": "^0.1.65",
+    "better-sqlite3": "^11.7.0",
+    "chart.js": "^4.4.7",
+    "discord.js": "^14.16.3",
+    "drizzle-orm": "^0.38.3",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.5",
+    "@types/node-cron": "^3.0.11",
+    "drizzle-kit": "^0.30.1",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}
