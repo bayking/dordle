@@ -1,3 +1,4 @@
+import { AttachmentBuilder } from 'discord.js';
 import { validateConfig } from '@/config';
 import { initializeDb } from '@/db';
 import { startBot } from '@/bot';
@@ -12,6 +13,7 @@ import {
   type WeeklySummary,
   type MonthlySummary,
 } from '@/features/summaries';
+import { generateLeaderboardChart, type LeaderboardChartEntry } from '@/features/charts';
 import { log } from '@/infrastructure/logger';
 
 async function main(): Promise<void> {
@@ -35,19 +37,44 @@ async function main(): Promise<void> {
         log.info({ serverId, channelId, period }, 'sending summary');
 
         let embed;
+        let chartBuffer: Buffer | null = null;
+
         switch (period) {
           case SummaryPeriod.Daily:
             embed = await formatDailySummaryEmbed(client, summary as DailySummary);
             break;
-          case SummaryPeriod.Weekly:
-            embed = await formatWeeklySummaryEmbed(client, summary as WeeklySummary);
+          case SummaryPeriod.Weekly: {
+            const weeklySummary = summary as WeeklySummary;
+            embed = await formatWeeklySummaryEmbed(client, weeklySummary);
+            if (weeklySummary.rankings.length > 0) {
+              const chartEntries: LeaderboardChartEntry[] = await Promise.all(
+                weeklySummary.rankings.slice(0, 10).map(async (r) => {
+                  let name = r.wordleUsername ?? 'Unknown';
+                  if (!r.discordId.startsWith('wordle:')) {
+                    try {
+                      const user = await client.users.fetch(r.discordId);
+                      name = user.username;
+                    } catch { /* keep fallback */ }
+                  }
+                  return { name, average: r.average, gamesPlayed: r.gamesPlayed };
+                })
+              );
+              chartBuffer = await generateLeaderboardChart(chartEntries, 'Weekly Leaderboard');
+            }
             break;
-          case SummaryPeriod.Monthly:
-            embed = await formatMonthlySummaryEmbed(client, summary as MonthlySummary);
+          }
+          case SummaryPeriod.Monthly: {
+            const monthlySummary = summary as MonthlySummary;
+            embed = await formatMonthlySummaryEmbed(client, monthlySummary);
             break;
+          }
         }
 
-        await channel.send({ embeds: [embed] });
+        const files = chartBuffer
+          ? [new AttachmentBuilder(chartBuffer, { name: 'leaderboard.png' })]
+          : [];
+
+        await channel.send({ embeds: [embed], files });
       },
     };
 

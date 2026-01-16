@@ -1,6 +1,13 @@
-import { SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
+import { SlashCommandBuilder, AttachmentBuilder, type ChatInputCommandInteraction } from 'discord.js';
 import { getOrCreateServer } from '@/features/stats';
 import { LeaderboardPeriod, getLeaderboard, formatLeaderboardEmbed } from '@/features/leaderboard';
+import { generateLeaderboardChart, type LeaderboardChartEntry } from '@/features/charts';
+
+const PERIOD_TITLES: Record<LeaderboardPeriod, string> = {
+  [LeaderboardPeriod.AllTime]: 'All-Time Leaderboard',
+  [LeaderboardPeriod.Weekly]: 'Weekly Leaderboard',
+  [LeaderboardPeriod.Monthly]: 'Monthly Leaderboard',
+};
 
 export const leaderboardCommand = {
   data: new SlashCommandBuilder()
@@ -30,18 +37,41 @@ export const leaderboardCommand = {
       return;
     }
 
+    await interaction.deferReply();
+
     const server = await getOrCreateServer(guildId);
     const leaderboard = await getLeaderboard(server.id, period);
 
     if (leaderboard.length === 0) {
-      await interaction.reply({
+      await interaction.editReply({
         content: 'No games have been played yet.',
-        ephemeral: true,
       });
       return;
     }
 
-    const embed = await formatLeaderboardEmbed(interaction.client, leaderboard, period);
-    await interaction.reply({ embeds: [embed] });
+    // Resolve usernames for chart
+    const chartEntries: LeaderboardChartEntry[] = await Promise.all(
+      leaderboard.slice(0, 10).map(async (entry) => {
+        let name = entry.wordleUsername ?? 'Unknown';
+        if (!entry.discordId.startsWith('wordle:')) {
+          try {
+            const user = await interaction.client.users.fetch(entry.discordId);
+            name = user.username;
+          } catch {
+            // Keep wordleUsername or Unknown
+          }
+        }
+        return { name, average: entry.average, gamesPlayed: entry.gamesPlayed };
+      })
+    );
+
+    const [embed, chartBuffer] = await Promise.all([
+      formatLeaderboardEmbed(interaction.client, leaderboard, period),
+      generateLeaderboardChart(chartEntries, PERIOD_TITLES[period]),
+    ]);
+
+    const attachment = new AttachmentBuilder(chartBuffer, { name: 'leaderboard.png' });
+
+    await interaction.editReply({ embeds: [embed], files: [attachment] });
   },
 };

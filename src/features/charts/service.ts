@@ -1,9 +1,16 @@
 import { createCanvas } from '@napi-rs/canvas';
 import { Chart, registerables } from 'chart.js';
 import { Score, type ScoreDistribution } from '@/features/stats';
+import type { LeaderboardEntry } from '@/features/leaderboard';
 import * as repo from '@/features/charts/repository';
 
 Chart.register(...registerables);
+
+export interface LeaderboardChartEntry {
+  name: string;
+  average: number;
+  gamesPlayed: number;
+}
 
 const CHART_WIDTH = 600;
 const CHART_HEIGHT = 400;
@@ -155,6 +162,76 @@ export async function generateTrendChart(
           min: 1,
           max: 6,
           ticks: { stepSize: 1, color: '#000' },
+          grid: { color: '#e0e0e0' },
+        },
+      },
+    },
+  });
+
+  chart.draw();
+  const buffer = canvas.toBuffer('image/png');
+  chart.destroy();
+  return buffer;
+}
+
+export async function generateLeaderboardChart(
+  entries: LeaderboardChartEntry[],
+  title: string
+): Promise<Buffer> {
+  const canvas = createCanvas(CHART_WIDTH, CHART_HEIGHT);
+  const ctx = canvas.getContext('2d');
+
+  const topEntries = entries.slice(0, 10);
+  const labels = topEntries.map((e) => e.name);
+  const data = topEntries.map((e) => e.average === Infinity ? 7 : e.average);
+
+  const colors = topEntries.map((e) => {
+    if (e.average === Infinity) return '#ff6b6b';
+    if (e.average <= 3) return WORDLE_GREEN;
+    if (e.average <= 4.5) return WORDLE_YELLOW;
+    return WORDLE_GRAY;
+  });
+
+  const chart = new Chart(ctx as unknown as CanvasRenderingContext2D, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Average',
+          data,
+          backgroundColor: colors,
+          borderWidth: 0,
+        },
+      ],
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: false,
+      animation: false,
+      plugins: {
+        title: {
+          display: true,
+          text: title,
+          font: { size: 18 },
+          color: '#000',
+        },
+        legend: { display: false },
+      },
+      scales: {
+        x: {
+          title: {
+            display: true,
+            text: 'Average Score',
+            color: '#000',
+          },
+          min: 1,
+          max: 7,
+          ticks: { color: '#000' },
+          grid: { color: '#e0e0e0' },
+        },
+        y: {
+          ticks: { color: '#000' },
           grid: { color: '#e0e0e0' },
         },
       },
