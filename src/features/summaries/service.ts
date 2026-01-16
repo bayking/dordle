@@ -31,6 +31,8 @@ export interface RankedPlayer {
   gamesPlayed: number;
   average: number;
   rank: number;
+  currentStreak: number;
+  maxStreak: number;
 }
 
 export interface WeeklySummary {
@@ -99,6 +101,24 @@ function buildUserMap(users: User[]): Map<number, User> {
     map.set(user.id, user);
   }
   return map;
+}
+
+function calculateStreaks(games: Game[]): { currentStreak: number; maxStreak: number } {
+  const sorted = [...games].sort((a, b) => a.wordleNumber - b.wordleNumber);
+
+  let maxStreak = 0;
+  let streak = 0;
+
+  for (const game of sorted) {
+    if (game.score !== Score.Fail) {
+      streak++;
+      maxStreak = Math.max(maxStreak, streak);
+    } else {
+      streak = 0;
+    }
+  }
+
+  return { currentStreak: streak, maxStreak };
 }
 
 export async function generateDailySummary(
@@ -191,6 +211,7 @@ export async function generateWeeklySummary(
     const average = winningGames.length > 0
       ? winningGames.reduce((sum, g) => sum + g.score, 0) / winningGames.length
       : Infinity;
+    const { currentStreak, maxStreak } = calculateStreaks(userGames);
 
     playerStats.push({
       userId,
@@ -198,6 +219,8 @@ export async function generateWeeklySummary(
       wordleUsername: user?.wordleUsername ?? null,
       gamesPlayed: userGames.length,
       average,
+      currentStreak,
+      maxStreak,
     });
   }
 

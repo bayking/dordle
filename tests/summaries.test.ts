@@ -193,6 +193,32 @@ describe('Summary Generation', () => {
       expect(summary.rankings).toHaveLength(0);
       expect(summary.totalGames).toBe(0);
     });
+
+    it('Given week of games with streaks, When weekly summary generated, Then includes streak data', async () => {
+      const games = [
+        // Alice: 3 consecutive wins = currentStreak 3, maxStreak 3
+        createGame(USERS.ALICE.id, Score.Three, 1, 1006),
+        createGame(USERS.ALICE.id, Score.Three, 2, 1005),
+        createGame(USERS.ALICE.id, Score.Three, 3, 1004),
+        // Bob: fail breaks streak = currentStreak 1, maxStreak 2
+        createGame(USERS.BOB.id, Score.Four, 1, 1006),
+        createGame(USERS.BOB.id, Score.Fail, 2, 1005),
+        createGame(USERS.BOB.id, Score.Four, 3, 1004),
+        createGame(USERS.BOB.id, Score.Four, 4, 1003),
+      ];
+      mockFindGamesByServerAndDateRange.mockResolvedValue(games);
+      mockFindUsersByServer.mockResolvedValue(Object.values(USERS));
+
+      const summary = await generateWeeklySummary(TEST_SERVER_ID, TEST_DATE);
+
+      const alice = summary.rankings.find((r) => r.userId === USERS.ALICE.id);
+      const bob = summary.rankings.find((r) => r.userId === USERS.BOB.id);
+
+      expect(alice?.currentStreak).toBe(3);
+      expect(alice?.maxStreak).toBe(3);
+      expect(bob?.currentStreak).toBe(1);
+      expect(bob?.maxStreak).toBe(2);
+    });
   });
 
   describe('Monthly Summary', () => {

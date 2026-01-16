@@ -94,7 +94,8 @@ export async function formatWeeklySummaryEmbed(
     const medal = MEDALS[i] ?? `${i + 1}.`;
     const name = await resolveUsername(client, player.discordId, player.wordleUsername);
     const avg = player.average === Infinity ? 'X' : player.average.toFixed(2);
-    lines.push(`${medal} **${name}** - ${avg} avg (${player.gamesPlayed} games)`);
+    const streak = player.currentStreak > 0 ? ` 🔥${player.currentStreak}` : '';
+    lines.push(`${medal} **${name}** - ${avg} avg, ${player.gamesPlayed} games${streak}`);
   }
 
   embed.setDescription(lines.join('\n'));
