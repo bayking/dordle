@@ -2,6 +2,25 @@ import { Score } from '@/features/stats';
 import * as repo from '@/features/leaderboard/repository';
 import type { Game } from '@/db/schema';
 
+function calculateStreaks(games: Game[]): { currentStreak: number; maxStreak: number } {
+  // Sort games by wordle number to ensure chronological order
+  const sorted = [...games].sort((a, b) => a.wordleNumber - b.wordleNumber);
+
+  let maxStreak = 0;
+  let streak = 0;
+
+  for (const game of sorted) {
+    if (game.score !== Score.Fail) {
+      streak++;
+      maxStreak = Math.max(maxStreak, streak);
+    } else {
+      streak = 0;
+    }
+  }
+
+  return { currentStreak: streak, maxStreak };
+}
+
 export enum LeaderboardPeriod {
   AllTime = 'all',
   Weekly = 'weekly',
@@ -16,6 +35,8 @@ export interface LeaderboardEntry {
   average: number;
   wins: number;
   winRate: number;
+  currentStreak: number;
+  maxStreak: number;
 }
 
 export async function getLeaderboard(
@@ -45,6 +66,7 @@ export async function getLeaderboard(
     const average = winScores.length > 0
       ? winScores.reduce((a, b) => a + b, 0) / winScores.length
       : Infinity;
+    const { currentStreak, maxStreak } = calculateStreaks(userGames);
 
     entries.push({
       discordId: user.discordId,
@@ -53,6 +75,8 @@ export async function getLeaderboard(
       average,
       wins: winningGames.length,
       winRate: (winningGames.length / userGames.length) * 100,
+      currentStreak,
+      maxStreak,
     });
   }
 

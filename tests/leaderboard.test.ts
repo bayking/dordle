@@ -58,6 +58,12 @@ const GAME_DATA = {
     { userId: 2, scores: [Score.Four, Score.Four] },
     // userId 3 has no games
   ],
+  STREAK_DATA: [
+    { userId: 1, scores: [Score.Three, Score.Four, Score.Three] },           // currentStreak: 3, maxStreak: 3
+    { userId: 2, scores: [Score.Three, Score.Fail, Score.Four, Score.Five] }, // currentStreak: 2, maxStreak: 2
+    { userId: 3, scores: [Score.Fail, Score.Fail, Score.Three] },            // currentStreak: 1, maxStreak: 1
+    { userId: 4, scores: [Score.Three, Score.Four, Score.Fail] },            // currentStreak: 0, maxStreak: 2
+  ],
 } as const;
 
 const EXPECTED = {
@@ -67,6 +73,12 @@ const EXPECTED = {
     { rank: 2, discordId: 'user5', average: 3.33 }, // tie
     { rank: 4, discordId: 'user2', average: 4.0 },
     { rank: 5, discordId: 'user4', average: 5.0 },
+  ],
+  STREAK_DATA: [
+    { discordId: 'user1', currentStreak: 3, maxStreak: 3 },
+    { discordId: 'user2', currentStreak: 2, maxStreak: 2 },
+    { discordId: 'user3', currentStreak: 1, maxStreak: 1 },
+    { discordId: 'user4', currentStreak: 0, maxStreak: 2 },
   ],
 } as const;
 
@@ -139,6 +151,24 @@ describe('Leaderboard', () => {
       const leaderboard = await getLeaderboard(TEST_SERVER_ID, LeaderboardPeriod.AllTime);
 
       expect(leaderboard).toHaveLength(0);
+    });
+  });
+
+  describe('Given users with various streaks', () => {
+    it('When leaderboard generated, Then includes current and max streak', async () => {
+      mockFindUsersByServer.mockResolvedValue(USERS.slice(0, 4));
+      mockFindGamesByServerAndPeriod.mockResolvedValue(
+        createGames(GAME_DATA.STREAK_DATA)
+      );
+
+      const leaderboard = await getLeaderboard(TEST_SERVER_ID, LeaderboardPeriod.AllTime);
+
+      for (const expected of EXPECTED.STREAK_DATA) {
+        const entry = leaderboard.find((e) => e.discordId === expected.discordId);
+        expect(entry).toBeDefined();
+        expect(entry!.currentStreak).toBe(expected.currentStreak);
+        expect(entry!.maxStreak).toBe(expected.maxStreak);
+      }
     });
   });
 });
