@@ -36,6 +36,7 @@ export async function handleMessage(message: Message): Promise<void> {
       userId: user.id,
       score,
       messageId: message.id,
+      playedAt: message.createdAt,
     });
 
     if (game) {
