@@ -1,8 +1,6 @@
 import { SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
-import { getOrCreateServer } from '@/features/stats/queries';
-import { getLeaderboard, formatLeaderboardEmbed } from '@/features/leaderboard';
-
-export type LeaderboardPeriod = 'all' | 'weekly' | 'monthly';
+import { getOrCreateServer } from '@/features/stats';
+import { LeaderboardPeriod, getLeaderboard, formatLeaderboardEmbed } from '@/features/leaderboard';
 
 export const leaderboardCommand = {
   data: new SlashCommandBuilder()
@@ -14,14 +12,14 @@ export const leaderboardCommand = {
         .setDescription('Time period for the leaderboard')
         .setRequired(false)
         .addChoices(
-          { name: 'All Time', value: 'all' },
-          { name: 'This Week', value: 'weekly' },
-          { name: 'This Month', value: 'monthly' }
+          { name: 'All Time', value: LeaderboardPeriod.AllTime },
+          { name: 'This Week', value: LeaderboardPeriod.Weekly },
+          { name: 'This Month', value: LeaderboardPeriod.Monthly }
         )
     ) as SlashCommandBuilder,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    const period = (interaction.options.getString('period') ?? 'all') as LeaderboardPeriod;
+    const period = (interaction.options.getString('period') ?? LeaderboardPeriod.AllTime) as LeaderboardPeriod;
     const guildId = interaction.guildId;
 
     if (!guildId) {
