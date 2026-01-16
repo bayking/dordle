@@ -4,7 +4,7 @@ import {
   PermissionFlagsBits,
   ChannelType,
 } from 'discord.js';
-import { getOrCreateServer, updateServer } from '@/features/stats/queries';
+import { getOrCreateServer, updateServer } from '@/features/stats';
 
 export const configCommand = {
   data: new SlashCommandBuilder()

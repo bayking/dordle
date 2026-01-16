@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
-import { getOrCreateServer, getOrCreateUser } from '@/features/stats/queries';
+import { getOrCreateServer, getOrCreateUser } from '@/features/stats';
 import { calculateUserStats, formatStatsEmbed } from '@/features/stats';
 
 export const statsCommand = {

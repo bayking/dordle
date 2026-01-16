@@ -4,7 +4,7 @@ import {
   PermissionFlagsBits,
   type TextChannel,
 } from 'discord.js';
-import { getOrCreateServer } from '@/features/stats/queries';
+import { getOrCreateServer } from '@/features/stats';
 import { handleMessage } from '@/features/parser';
 
 export const backfillCommand = {

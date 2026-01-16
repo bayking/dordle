@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, type ChatInputCommandInteraction, AttachmentBuilder } from 'discord.js';
-import { getOrCreateServer, getOrCreateUser } from '@/features/stats/queries';
+import { getOrCreateServer, getOrCreateUser } from '@/features/stats';
 import { calculateUserStats } from '@/features/stats';
 import { generateDistributionChart, generateTrendChart } from '@/features/charts';
 

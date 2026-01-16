@@ -1,6 +1,6 @@
 import type { Message } from 'discord.js';
 import { parseWordleMessage } from '@/features/parser/patterns';
-import { getOrCreateServer, getOrCreateUser, recordGame } from '@/features/stats/queries';
+import { getOrCreateServer, getOrCreateUser, recordGame } from '@/features/stats';
 
 export { parseWordleMessage } from '@/features/parser/patterns';
 export type { ParsedResult, ParsedScore } from '@/features/parser/patterns';

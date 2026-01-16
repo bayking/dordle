@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, type ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
-import { getOrCreateServer, getOrCreateUser, getRecentGames } from '@/features/stats/queries';
+import { getOrCreateServer, getOrCreateUser, getRecentGames } from '@/features/stats';
 
 export const historyCommand = {
   data: new SlashCommandBuilder()
