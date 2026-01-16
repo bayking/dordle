@@ -45,22 +45,34 @@ export async function getOrCreateServer(discordId: string): Promise<Server> {
 
 export async function getOrCreateUser(
   serverId: number,
-  discordId?: string,
-  wordleUsername?: string
+  discordId: string,
+  wordleUsername: string
 ): Promise<User> {
-  if (discordId) {
-    const existing = await repo.findUserByDiscordId(serverId, discordId);
-    if (existing) return existing;
+  // First try to find by Discord ID
+  const byDiscordId = await repo.findUserByDiscordId(serverId, discordId);
+  if (byDiscordId) {
+    // Update username if we have a new one and it's not set
+    if (wordleUsername && !byDiscordId.wordleUsername) {
+      await repo.updateUserWordleUsername(serverId, discordId, wordleUsername);
+    }
+    return byDiscordId;
   }
 
-  if (wordleUsername) {
-    const existing = await repo.findUserByWordleUsername(serverId, wordleUsername);
-    if (existing) return existing;
+  // Then try to find by wordle username (might have been created before we knew Discord ID)
+  const byUsername = await repo.findUserByWordleUsername(serverId, wordleUsername);
+  if (byUsername) {
+    // Update Discord ID if we now have a real one (not wordle: prefixed)
+    if (!discordId.startsWith('wordle:') && byUsername.discordId.startsWith('wordle:')) {
+      await repo.updateUserDiscordId(serverId, wordleUsername, discordId);
+      return { ...byUsername, discordId };
+    }
+    return byUsername;
   }
 
+  // Create new user with both fields
   return repo.createUser({
     serverId,
-    discordId: discordId ?? `wordle:${wordleUsername}`,
+    discordId,
     wordleUsername,
   });
 }

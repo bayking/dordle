@@ -33,8 +33,8 @@ export function parseWordleMessage(content: string): ParsedResult | null {
   const resultsSection = content.slice(resultsStart);
 
   // Find all score entries with their users
-  // Pattern: optional crown, score/6:, then usernames until next score or end
-  const scoreEntryPattern = /(🏆)?\s*(\d|X)\/6:\s*([^🏆]*?)(?=\d\/6:|X\/6:|$)/g;
+  // Pattern: optional crown (🏆 or 👑), score/6:, then usernames until next score or end
+  const scoreEntryPattern = /([🏆👑])?\s*(\d|X)\/6:\s*([^🏆👑]*?)(?=\d\/6:|X\/6:|$)/g;
 
   let match;
   while ((match = scoreEntryPattern.exec(resultsSection)) !== null) {
@@ -43,10 +43,8 @@ export function parseWordleMessage(content: string): ParsedResult | null {
     const score: Score = scoreStr === 'X' ? Score.Fail : (parseInt(scoreStr, 10) as Score);
     const usersSection = match[3]!;
 
-    // Extract Discord mentions <@123456> or <@!123456> and plain @usernames
+    // Extract Discord mentions <@123456> or <@!123456>
     const mentionPattern = /<@!?(\d+)>/g;
-    const usernamePattern = /@([^@<>\s]+)/g;
-
     let mentionMatch;
     while ((mentionMatch = mentionPattern.exec(usersSection)) !== null) {
       const discordId = mentionMatch[1]!;
@@ -56,17 +54,14 @@ export function parseWordleMessage(content: string): ParsedResult | null {
       }
     }
 
-    // Also check for plain @usernames (fallback)
-    if (scores.length === 0 || !usersSection.includes('<@')) {
-      let userMatch;
-      while ((userMatch = usernamePattern.exec(usersSection)) !== null) {
-        const username = userMatch[1]!.trim();
-        if (username && !username.includes('/6')) {
-          scores.push({ username, score });
-          if (isCrownLine) {
-            winners.push(username);
-          }
-        }
+    // Also extract plain @usernames (can appear alongside Discord mentions)
+    const usernamePattern = /@([a-zA-Z0-9_]+)(?![^<]*>)/g;
+    let userMatch;
+    while ((userMatch = usernamePattern.exec(usersSection)) !== null) {
+      const username = userMatch[1]!;
+      scores.push({ username, score });
+      if (isCrownLine) {
+        winners.push(username);
       }
     }
   }

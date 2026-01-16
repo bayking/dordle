@@ -55,6 +55,14 @@ export async function updateUserDiscordId(serverId: number, wordleUsername: stri
     .where(and(eq(users.serverId, serverId), eq(users.wordleUsername, wordleUsername)));
 }
 
+export async function updateUserWordleUsername(serverId: number, discordId: string, wordleUsername: string): Promise<void> {
+  const db = getDb();
+  await db
+    .update(users)
+    .set({ wordleUsername })
+    .where(and(eq(users.serverId, serverId), eq(users.discordId, discordId)));
+}
+
 export async function findGameByUserAndNumber(
   serverId: number,
   userId: number,

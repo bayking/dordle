@@ -1,15 +1,18 @@
 import type { Message } from 'discord.js';
 import { parseWordleMessage } from '@/features/parser/patterns';
+import { resolveUser } from '@/features/parser/resolver';
 import { getOrCreateServer, getOrCreateUser, recordGame } from '@/features/stats';
 
 export { parseWordleMessage } from '@/features/parser/patterns';
 export type { ParsedResult, ParsedScore } from '@/features/parser/patterns';
+export { resolveUser } from '@/features/parser/resolver';
 
 const WORDLE_APP_USERNAME = 'Wordle';
 
 export async function handleMessage(message: Message): Promise<void> {
   if (!message.guildId) return;
   if (message.author.username !== WORDLE_APP_USERNAME) return;
+  if (!message.guild) return;
 
   const parsed = parseWordleMessage(message.content);
   if (!parsed) return;
@@ -17,7 +20,8 @@ export async function handleMessage(message: Message): Promise<void> {
   const server = await getOrCreateServer(message.guildId);
 
   for (const { discordId, username, score } of parsed.scores) {
-    const user = await getOrCreateUser(server.id, discordId, username);
+    const resolved = await resolveUser(message.guild, { discordId, username });
+    const user = await getOrCreateUser(server.id, resolved.discordId, resolved.username);
     await recordGame({
       serverId: server.id,
       userId: user.id,

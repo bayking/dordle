@@ -85,10 +85,23 @@ X/6: @Eve`;
   });
 
   describe('Given a message with crown emoji', () => {
-    it('When parsed, Then identifies the winners', () => {
+    it('When trophy emoji 🏆, Then identifies the winners', () => {
       const message = `Your group is on a 3 day streak! 🔥 Here are yesterday's results:
 
 🏆 4/6: @Alice
+5/6: @Bob
+6/6: @Charlie`;
+
+      const result = parseWordleMessage(message);
+
+      expect(result).not.toBeNull();
+      expect(result!.winners).toEqual(['Alice']);
+    });
+
+    it('When crown emoji 👑, Then identifies the winners', () => {
+      const message = `Your group is on a 3 day streak! 🔥 Here are yesterday's results:
+
+👑 4/6: @Alice
 5/6: @Bob
 6/6: @Charlie`;
 
@@ -109,6 +122,39 @@ X/6: @Eve`;
       expect(result).not.toBeNull();
       expect(result!.winners).toContain('Alice');
       expect(result!.winners).toContain('Bob');
+    });
+  });
+
+  describe('Given mixed Discord mentions and plain usernames', () => {
+    it('When same line has both formats, Then extracts both separately', () => {
+      const message = `Your group is on a 2 day streak! 🔥 Here are yesterday's results:
+
+👑 3/6: <@${DISCORD_IDS.ALICE}>
+5/6: @pjong <@${DISCORD_IDS.BOB}>`;
+
+      const result = parseWordleMessage(message);
+
+      expect(result).not.toBeNull();
+      expect(result!.scores).toHaveLength(3);
+      expect(result!.scores).toContainEqual({ discordId: DISCORD_IDS.ALICE, score: 3 });
+      expect(result!.scores).toContainEqual({ username: 'pjong', score: 5 });
+      expect(result!.scores).toContainEqual({ discordId: DISCORD_IDS.BOB, score: 5 });
+    });
+
+    it('When only plain usernames on some lines, Then extracts them', () => {
+      const message = `Your group is on a 3 day streak! 🔥 Here are yesterday's results:
+
+👑 4/6: @runar12
+5/6: <@${DISCORD_IDS.ALICE}>
+6/6: @pjong`;
+
+      const result = parseWordleMessage(message);
+
+      expect(result).not.toBeNull();
+      expect(result!.scores).toHaveLength(3);
+      expect(result!.scores).toContainEqual({ username: 'runar12', score: 4 });
+      expect(result!.scores).toContainEqual({ discordId: DISCORD_IDS.ALICE, score: 5 });
+      expect(result!.scores).toContainEqual({ username: 'pjong', score: 6 });
     });
   });
 
