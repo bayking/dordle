@@ -47,14 +47,18 @@ export const games = sqliteTable(
   (table) => [unique().on(table.serverId, table.userId, table.wordleNumber)]
 );
 
-export const scheduledPosts = sqliteTable('scheduled_posts', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  serverId: integer('server_id')
-    .notNull()
-    .references(() => servers.id, { onDelete: 'cascade' }),
-  type: text('type', { enum: ['daily', 'weekly', 'monthly'] }).notNull(),
-  lastPostedAt: integer('last_posted_at', { mode: 'timestamp' }),
-});
+export const scheduledPosts = sqliteTable(
+  'scheduled_posts',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    serverId: integer('server_id')
+      .notNull()
+      .references(() => servers.id, { onDelete: 'cascade' }),
+    type: text('type', { enum: ['daily', 'weekly', 'monthly'] }).notNull(),
+    lastPostedAt: integer('last_posted_at', { mode: 'timestamp' }),
+  },
+  (table) => [unique().on(table.serverId, table.type)]
+);
 
 export type Server = typeof servers.$inferSelect;
 export type NewServer = typeof servers.$inferInsert;
