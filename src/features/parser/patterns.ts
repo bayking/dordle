@@ -1,6 +1,8 @@
+import { Score } from '@/features/stats';
+
 export interface ParsedScore {
   username: string;
-  score: number; // 1-6 for wins, 7 for X/fail
+  score: Score;
 }
 
 export interface ParsedResult {
@@ -37,7 +39,7 @@ export function parseWordleMessage(content: string): ParsedResult | null {
   while ((match = scoreEntryPattern.exec(resultsSection)) !== null) {
     const isCrownLine = !!match[1];
     const scoreStr = match[2]!;
-    const score = scoreStr === 'X' ? 7 : parseInt(scoreStr, 10);
+    const score: Score = scoreStr === 'X' ? Score.Fail : (parseInt(scoreStr, 10) as Score);
     const usersSection = match[3]!;
 
     // Extract @usernames - username ends at next @ or end of section
