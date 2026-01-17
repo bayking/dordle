@@ -110,7 +110,8 @@ export async function formatWeeklySummaryEmbed(
     const avg = player.average === Infinity ? 'X' : player.average.toFixed(2);
     const streak = player.currentStreak > 0 ? ` 🔥${player.currentStreak}` : '';
     const provisional = player.eloGamesPlayed <= PROVISIONAL_GAMES ? '*' : '';
-    lines.push(`${medal} **${name}** - ${player.elo}${provisional} ELO │ ${avg} avg │ ${player.gamesPlayed} games${streak}`);
+    const missed = player.missedDays > 0 ? ` (${player.missedDays} missed)` : '';
+    lines.push(`${medal} **${name}** - ${player.elo}${provisional} ELO │ ${avg} avg │ ${player.gamesPlayed} games${missed}${streak}`);
   }
 
   // Top ELO movers

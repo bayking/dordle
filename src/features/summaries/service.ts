@@ -42,6 +42,7 @@ export interface RankedPlayer {
   discordId: string;
   wordleUsername: string | null;
   gamesPlayed: number;
+  missedDays: number;
   average: number;
   rank: number;
   currentStreak: number;
@@ -259,6 +260,12 @@ export async function generateWeeklySummary(
     gamesByUser.set(game.userId, userGames);
   }
 
+  // Find the range of wordles in this period
+  const allWordleNumbers = games.map((g) => g.wordleNumber);
+  const minWordle = Math.min(...allWordleNumbers);
+  const maxWordle = Math.max(...allWordleNumbers);
+  const totalWordlesInPeriod = maxWordle - minWordle + 1;
+
   const playerStats: Omit<RankedPlayer, 'rank'>[] = [];
 
   for (const [userId, userGames] of gamesByUser) {
@@ -269,11 +276,18 @@ export async function generateWeeklySummary(
       : Infinity;
     const { currentStreak, maxStreak } = calculateStreaks(userGames);
 
+    // Calculate missed days (from player's first game in period to max wordle)
+    const playerWordleNumbers = userGames.map((g) => g.wordleNumber);
+    const playerMinWordle = Math.min(...playerWordleNumbers);
+    const expectedGames = maxWordle - playerMinWordle + 1;
+    const missedDays = expectedGames - userGames.length;
+
     playerStats.push({
       userId,
       discordId: user?.discordId ?? '',
       wordleUsername: user?.wordleUsername ?? null,
       gamesPlayed: userGames.length,
+      missedDays,
       average,
       currentStreak,
       maxStreak,
