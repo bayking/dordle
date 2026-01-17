@@ -1,10 +1,9 @@
-import { eq, desc, and, inArray, gte } from 'drizzle-orm';
+import { eq, desc, and, inArray } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { games, eloHistory, type Game } from '@/db/schema';
 import type { EloDataPoint } from '@/features/charts/service';
 
 const TREND_GAME_LIMIT = 30;
-const ELO_HISTORY_DAYS = 7;
 
 export async function findRecentGamesByUserId(userId: number): Promise<Game[]> {
   const db = getDb();
@@ -25,15 +24,11 @@ export async function findEloHistoryForUsers(
 
   const db = getDb();
 
-  // Get ELO history for the last 7 days
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - ELO_HISTORY_DAYS);
-
+  // Get all ELO history for users (chart shows last 7 wordles)
   const history = await db.query.eloHistory.findMany({
     where: and(
       eq(eloHistory.serverId, serverId),
-      inArray(eloHistory.userId, userIds),
-      gte(eloHistory.createdAt, sevenDaysAgo)
+      inArray(eloHistory.userId, userIds)
     ),
     orderBy: (h, { asc }) => asc(h.wordleNumber),
   });

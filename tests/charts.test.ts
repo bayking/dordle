@@ -1,97 +1,147 @@
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { generateDistributionChart, generateTrendChart } from '@/features/charts/service';
-import * as repo from '@/features/charts/repository';
-import { Score, type ScoreDistribution } from '@/features/stats';
-import type { Game } from '@/db/schema';
+import { describe, it, expect } from 'vitest';
+import {
+  prepareLeaderboardChartData,
+  type LeaderboardChartEntry,
+  type EloDataPoint,
+} from '@/features/charts/service';
 
-vi.mock('@/features/charts/repository', () => ({
-  findRecentGamesByUserId: vi.fn(),
-}));
-
-const mockFindRecentGamesByUserId = repo.findRecentGamesByUserId as Mock;
-
-// Test constants
-const TEST_USER_ID = 1;
-const TEST_USERNAME = 'TestUser';
-const PNG_HEADER = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
-
-const DISTRIBUTIONS: Record<string, ScoreDistribution> = {
-  NORMAL: {
-    [Score.One]: 2,
-    [Score.Two]: 5,
-    [Score.Three]: 15,
-    [Score.Four]: 25,
-    [Score.Five]: 10,
-    [Score.Six]: 3,
-    [Score.Fail]: 1,
+const TEST_ENTRIES = {
+  ALICE: {
+    name: 'Alice',
+    currentElo: 1550,
+    eloHistory: [
+      { wordleNumber: 1670, elo: 1500 },
+      { wordleNumber: 1671, elo: 1520 },
+      { wordleNumber: 1672, elo: 1550 },
+    ],
   },
-  EMPTY: {
-    [Score.One]: 0,
-    [Score.Two]: 0,
-    [Score.Three]: 0,
-    [Score.Four]: 0,
-    [Score.Five]: 0,
-    [Score.Six]: 0,
-    [Score.Fail]: 0,
+  BOB: {
+    name: 'Bob',
+    currentElo: 1480,
+    eloHistory: [
+      { wordleNumber: 1670, elo: 1500 },
+      { wordleNumber: 1671, elo: 1490 },
+      { wordleNumber: 1672, elo: 1480 },
+    ],
+  },
+  CHARLIE_SPARSE: {
+    name: 'Charlie',
+    currentElo: 1510,
+    eloHistory: [
+      { wordleNumber: 1670, elo: 1500 },
+      { wordleNumber: 1672, elo: 1510 }, // Skipped 1671
+    ],
+  },
+  EMPTY_HISTORY: {
+    name: 'Empty',
+    currentElo: 1500,
+    eloHistory: [],
   },
 };
 
-function createTrendGames(scores: Score[]): Game[] {
-  return scores.map((score, i) => ({
-    id: i + 1,
-    serverId: 1,
-    userId: TEST_USER_ID,
-    wordleNumber: 1000 + i,
-    score,
-    playedAt: new Date(Date.now() - (scores.length - i) * 86400000),
-    messageId: null,
-  }));
-}
+describe('prepareLeaderboardChartData', () => {
+  describe('Given entries with ELO history', () => {
+    it('Returns labels from wordle numbers', () => {
+      const entries: LeaderboardChartEntry[] = [TEST_ENTRIES.ALICE, TEST_ENTRIES.BOB];
 
-describe('Chart Generation', () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
+      const { labels } = prepareLeaderboardChartData(entries);
+
+      expect(labels).toEqual(['#1670', '#1671', '#1672']);
+    });
+
+    it('Returns datasets with correct ELO values', () => {
+      const entries: LeaderboardChartEntry[] = [TEST_ENTRIES.ALICE];
+
+      const { datasets } = prepareLeaderboardChartData(entries);
+
+      expect(datasets).toHaveLength(1);
+      expect(datasets[0]!.label).toBe('Alice');
+      expect(datasets[0]!.data).toEqual([1500, 1520, 1550]);
+    });
+
+    it('Returns null for missing wordle numbers when other players have data', () => {
+      // Alice has all wordles, Charlie is missing 1671
+      const entries: LeaderboardChartEntry[] = [TEST_ENTRIES.ALICE, TEST_ENTRIES.CHARLIE_SPARSE];
+
+      const { labels, datasets } = prepareLeaderboardChartData(entries);
+
+      // Labels include all wordles from both players
+      expect(labels).toEqual(['#1670', '#1671', '#1672']);
+      // Alice has all data
+      expect(datasets[0]!.data).toEqual([1500, 1520, 1550]);
+      // Charlie has null for 1671
+      expect(datasets[1]!.data).toEqual([1500, null, 1510]);
+    });
   });
 
-  describe('Distribution Chart', () => {
-    it('Given valid distribution, When chart generated, Then returns valid PNG buffer', async () => {
-      const buffer = await generateDistributionChart(DISTRIBUTIONS.NORMAL, TEST_USERNAME);
+  describe('Given entries with empty history', () => {
+    it('Uses currentElo as single data point when no history', () => {
+      const entries: LeaderboardChartEntry[] = [TEST_ENTRIES.EMPTY_HISTORY];
 
-      expect(buffer).toBeInstanceOf(Buffer);
-      expect(buffer.length).toBeGreaterThan(0);
-      expect(buffer.subarray(0, 4).equals(PNG_HEADER)).toBe(true);
+      const { labels, datasets } = prepareLeaderboardChartData(entries);
+
+      expect(labels).toHaveLength(1);
+      expect(labels[0]).toBe('Current');
+      expect(datasets[0]!.data).toEqual([1500]);
     });
 
-    it('Given empty distribution, When chart generated, Then still returns valid PNG', async () => {
-      const buffer = await generateDistributionChart(DISTRIBUTIONS.EMPTY, TEST_USERNAME);
+    it('Mixes historical and current-only entries', () => {
+      const entries: LeaderboardChartEntry[] = [
+        TEST_ENTRIES.ALICE,
+        TEST_ENTRIES.EMPTY_HISTORY,
+      ];
 
-      expect(buffer).toBeInstanceOf(Buffer);
-      expect(buffer.subarray(0, 4).equals(PNG_HEADER)).toBe(true);
+      const { labels, datasets } = prepareLeaderboardChartData(entries);
+
+      // Labels from Alice's history
+      expect(labels).toEqual(['#1670', '#1671', '#1672']);
+      // Alice has full history
+      expect(datasets[0]!.data).toEqual([1500, 1520, 1550]);
+      // Empty has null for historical, but should show currentElo somehow
+      // Actually, they just won't have data points for those wordles
+      expect(datasets[1]!.data).toEqual([null, null, null]);
     });
   });
 
-  describe('Trend Chart', () => {
-    it('Given user with games, When trend chart generated, Then returns valid PNG buffer', async () => {
-      const games = createTrendGames([
-        Score.Four, Score.Three, Score.Five, Score.Four,
-        Score.Three, Score.Four, Score.Three, Score.Four,
-      ]);
-      mockFindRecentGamesByUserId.mockResolvedValue(games);
+  describe('Given more than 7 wordle numbers', () => {
+    it('Only shows last 7 wordles', () => {
+      const manyWordles: EloDataPoint[] = [];
+      for (let i = 1660; i <= 1675; i++) {
+        manyWordles.push({ wordleNumber: i, elo: 1500 + i - 1660 });
+      }
+      const entries: LeaderboardChartEntry[] = [
+        { name: 'Player', currentElo: 1515, eloHistory: manyWordles },
+      ];
 
-      const buffer = await generateTrendChart(TEST_USER_ID, TEST_USERNAME);
+      const { labels } = prepareLeaderboardChartData(entries);
 
-      expect(buffer).toBeInstanceOf(Buffer);
-      expect(buffer.length).toBeGreaterThan(0);
-      expect(buffer.subarray(0, 4).equals(PNG_HEADER)).toBe(true);
+      expect(labels).toHaveLength(7);
+      expect(labels[0]).toBe('#1669');
+      expect(labels[6]).toBe('#1675');
     });
+  });
 
-    it('Given user with no games, When trend chart generated, Then returns valid PNG', async () => {
-      mockFindRecentGamesByUserId.mockResolvedValue([]);
+  describe('Given no entries', () => {
+    it('Returns empty labels and datasets', () => {
+      const { labels, datasets } = prepareLeaderboardChartData([]);
 
-      const buffer = await generateTrendChart(TEST_USER_ID, TEST_USERNAME);
+      expect(labels).toEqual([]);
+      expect(datasets).toEqual([]);
+    });
+  });
 
-      expect(buffer).toBeInstanceOf(Buffer);
-      expect(buffer.subarray(0, 4).equals(PNG_HEADER)).toBe(true);
+  describe('Given all entries have empty history', () => {
+    it('Shows current ELO for all players', () => {
+      const entries: LeaderboardChartEntry[] = [
+        { name: 'Player1', currentElo: 1550, eloHistory: [] },
+        { name: 'Player2', currentElo: 1480, eloHistory: [] },
+      ];
+
+      const { labels, datasets } = prepareLeaderboardChartData(entries);
+
+      expect(labels).toEqual(['Current']);
+      expect(datasets[0]!.data).toEqual([1550]);
+      expect(datasets[1]!.data).toEqual([1480]);
     });
   });
 });

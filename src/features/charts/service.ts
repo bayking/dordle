@@ -219,6 +219,23 @@ export async function generateTrendChart(
   return buffer;
 }
 
+export interface ChartDataset {
+  label: string;
+  data: (number | null)[];
+  borderColor: string;
+  backgroundColor: string;
+  fill: boolean;
+  tension: number;
+  spanGaps: boolean;
+  pointRadius: number;
+  pointHoverRadius: number;
+}
+
+export interface LeaderboardChartData {
+  labels: string[];
+  datasets: ChartDataset[];
+}
+
 // Line colors for different players
 const LINE_COLORS = [
   '#6aaa64', // Green
@@ -233,31 +250,50 @@ const LINE_COLORS = [
   '#d7bde2', // Lavender
 ];
 
-export async function generateLeaderboardChart(
-  entries: LeaderboardChartEntry[],
-  title: string
-): Promise<Buffer> {
-  const canvas = createCanvas(CHART_WIDTH, CHART_HEIGHT);
-  const ctx = canvas.getContext('2d');
-
-  // Fill background
-  ctx.fillStyle = BG_COLOR;
-  ctx.fillRect(0, 0, CHART_WIDTH, CHART_HEIGHT);
+/**
+ * Prepare chart data from leaderboard entries.
+ * Extracts labels and datasets for Chart.js consumption.
+ */
+export function prepareLeaderboardChartData(
+  entries: LeaderboardChartEntry[]
+): LeaderboardChartData {
+  if (entries.length === 0) {
+    return { labels: [], datasets: [] };
+  }
 
   const topEntries = entries.slice(0, 10);
 
-  // Get all unique wordle numbers and sort them
+  // Get all unique wordle numbers from all entries
   const allWordleNumbers = new Set<number>();
   for (const entry of topEntries) {
     for (const point of entry.eloHistory) {
       allWordleNumbers.add(point.wordleNumber);
     }
   }
+
+  // If no history exists, show current ELO
+  if (allWordleNumbers.size === 0) {
+    return {
+      labels: ['Current'],
+      datasets: topEntries.map((entry, index) => ({
+        label: entry.name,
+        data: [entry.currentElo],
+        borderColor: LINE_COLORS[index % LINE_COLORS.length],
+        backgroundColor: LINE_COLORS[index % LINE_COLORS.length] + '40',
+        fill: false,
+        tension: 0.3,
+        spanGaps: true,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+      })),
+    };
+  }
+
   const sortedWordleNumbers = [...allWordleNumbers].sort((a, b) => a - b);
 
-  // Take only the last 7 days
-  const labels = sortedWordleNumbers.slice(-7).map((n) => `#${n}`);
+  // Take only the last 7 wordles
   const wordleNumbersToShow = sortedWordleNumbers.slice(-7);
+  const labels = wordleNumbersToShow.map((n) => `#${n}`);
 
   // Create datasets for each player
   const datasets = topEntries.map((entry, index) => {
@@ -276,6 +312,22 @@ export async function generateLeaderboardChart(
       pointHoverRadius: 6,
     };
   });
+
+  return { labels, datasets };
+}
+
+export async function generateLeaderboardChart(
+  entries: LeaderboardChartEntry[],
+  title: string
+): Promise<Buffer> {
+  const canvas = createCanvas(CHART_WIDTH, CHART_HEIGHT);
+  const ctx = canvas.getContext('2d');
+
+  // Fill background
+  ctx.fillStyle = BG_COLOR;
+  ctx.fillRect(0, 0, CHART_WIDTH, CHART_HEIGHT);
+
+  const { labels, datasets } = prepareLeaderboardChartData(entries);
 
   const chart = new Chart(ctx as unknown as CanvasRenderingContext2D, {
     type: 'line',
