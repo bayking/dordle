@@ -2,6 +2,7 @@ import { SlashCommandBuilder, AttachmentBuilder, type ChatInputCommandInteractio
 import { getOrCreateServer } from '@/features/stats';
 import { LeaderboardPeriod, getLeaderboard, formatLeaderboardEmbed } from '@/features/leaderboard';
 import { generateLeaderboardChart, type LeaderboardChartEntry } from '@/features/charts';
+import { findEloHistoryForUsers } from '@/features/charts/repository';
 
 const PERIOD_TITLES: Record<LeaderboardPeriod, string> = {
   [LeaderboardPeriod.AllTime]: 'All-Time Leaderboard',
@@ -49,9 +50,14 @@ export const leaderboardCommand = {
       return;
     }
 
-    // Resolve usernames for chart
+    // Get ELO history for top 10 players
+    const top10 = leaderboard.slice(0, 10);
+    const userIds = top10.map((e) => e.userId);
+    const eloHistoryMap = await findEloHistoryForUsers(server.id, userIds);
+
+    // Resolve usernames and build chart entries
     const chartEntries: LeaderboardChartEntry[] = await Promise.all(
-      leaderboard.slice(0, 10).map(async (entry) => {
+      top10.map(async (entry) => {
         let name = entry.wordleUsername ?? 'Unknown';
         if (!entry.discordId.startsWith('wordle:')) {
           try {
@@ -61,13 +67,17 @@ export const leaderboardCommand = {
             // Keep wordleUsername or Unknown
           }
         }
-        return { name, average: entry.average, gamesPlayed: entry.gamesPlayed };
+        return {
+          name,
+          eloHistory: eloHistoryMap.get(entry.userId) ?? [],
+          currentElo: entry.elo,
+        };
       })
     );
 
     const [embed, chartBuffer] = await Promise.all([
       formatLeaderboardEmbed(interaction.client, leaderboard, period),
-      generateLeaderboardChart(chartEntries, PERIOD_TITLES[period]),
+      generateLeaderboardChart(chartEntries, `${PERIOD_TITLES[period]} - ELO Trend`),
     ]);
 
     const attachment = new AttachmentBuilder(chartBuffer, { name: 'leaderboard.png' });

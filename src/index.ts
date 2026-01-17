@@ -14,6 +14,7 @@ import {
   type MonthlySummary,
 } from '@/features/summaries';
 import { generateLeaderboardChart, type LeaderboardChartEntry } from '@/features/charts';
+import { findEloHistoryForUsers } from '@/features/charts/repository';
 import { log } from '@/infrastructure/logger';
 
 async function main(): Promise<void> {
@@ -47,8 +48,12 @@ async function main(): Promise<void> {
             const weeklySummary = summary as WeeklySummary;
             embed = await formatWeeklySummaryEmbed(client, weeklySummary);
             if (weeklySummary.rankings.length > 0) {
+              const top10 = weeklySummary.rankings.slice(0, 10);
+              const userIds = top10.map((r) => r.userId);
+              const eloHistoryMap = await findEloHistoryForUsers(serverId, userIds);
+
               const chartEntries: LeaderboardChartEntry[] = await Promise.all(
-                weeklySummary.rankings.slice(0, 10).map(async (r) => {
+                top10.map(async (r) => {
                   let name = r.wordleUsername ?? 'Unknown';
                   if (!r.discordId.startsWith('wordle:')) {
                     try {
@@ -56,10 +61,14 @@ async function main(): Promise<void> {
                       name = user.username;
                     } catch { /* keep fallback */ }
                   }
-                  return { name, average: r.average, gamesPlayed: r.gamesPlayed };
+                  return {
+                    name,
+                    eloHistory: eloHistoryMap.get(r.userId) ?? [],
+                    currentElo: r.elo,
+                  };
                 })
               );
-              chartBuffer = await generateLeaderboardChart(chartEntries, 'Weekly Leaderboard');
+              chartBuffer = await generateLeaderboardChart(chartEntries, 'Weekly ELO Trend');
             }
             break;
           }
