@@ -1,8 +1,14 @@
 import { log } from '@/infrastructure/logger';
-import { calculateDailyEloChanges, type PlayerGame } from '@/features/elo/service';
+import {
+  calculateDailyEloChanges,
+  calculateAbsentPlayerEloChanges,
+  type PlayerGame,
+} from '@/features/elo/service';
 import {
   getPlayersForWordle,
+  getAbsentActiveUsers,
   applyEloUpdates,
+  applyAbsentEloUpdates,
   hasEloBeenCalculated,
   resetServerElo,
   clearServerEloHistory,
@@ -12,6 +18,7 @@ import { MIN_PLAYERS_FOR_ELO, FAIL_EFFECTIVE_SCORE } from '@/features/elo/consta
 
 /**
  * Process ELO updates for a specific wordle number.
+ * Includes penalties for active users who didn't play.
  * Returns true if ELO was calculated, false if skipped.
  */
 export async function processWordleElo(
@@ -45,7 +52,7 @@ export async function processWordleElo(
     gamesPlayed: p.gamesPlayed,
   }));
 
-  // Calculate ELO changes
+  // Calculate ELO changes for participants
   const updates = calculateDailyEloChanges(playerGames);
 
   // Calculate average score for history
@@ -60,8 +67,25 @@ export async function processWordleElo(
     playerScores.set(p.userId, p.score);
   }
 
-  // Apply updates
+  // Apply updates for participants
   await applyEloUpdates(serverId, wordleNumber, updates, playerScores, avgScore, playedAt);
+
+  // Get active users who didn't play and apply penalties
+  const absentPlayers = await getAbsentActiveUsers(serverId, wordleNumber, playedAt);
+  if (absentPlayers.length > 0) {
+    const absentUpdates = calculateAbsentPlayerEloChanges(playerGames, absentPlayers);
+    await applyAbsentEloUpdates(serverId, wordleNumber, absentUpdates, players.length, playedAt);
+
+    log.info(
+      {
+        serverId,
+        wordleNumber,
+        absentPlayers: absentPlayers.length,
+        absentUpdates: absentUpdates.map((u) => ({ userId: u.userId, change: u.change })),
+      },
+      'Absent player ELO penalties applied'
+    );
+  }
 
   log.info(
     {

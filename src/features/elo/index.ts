@@ -1,21 +1,23 @@
 export {
   calculateDailyEloChanges,
+  calculateAbsentPlayerEloChanges,
   getKFactor,
   type EloUpdate,
   type PlayerGame,
+  type AbsentPlayer,
 } from '@/features/elo/service';
 
 export {
   getPlayersForWordle,
+  getAbsentActiveUsers,
   applyEloUpdates,
+  applyAbsentEloUpdates,
   hasEloBeenCalculated,
   getEloHistory,
   getEloChangesForWordle,
   getEloHistoryForDateRange,
   resetServerElo,
   clearServerEloHistory,
-  getInactiveUsers,
-  applyEloDecay,
   getWordleNumbersForServer,
   type PlayerWithElo,
 } from '@/features/elo/repository';
@@ -32,7 +34,7 @@ export {
   MIN_PLAYERS_FOR_ELO,
   FAIL_EFFECTIVE_SCORE,
   FAIL_PENALTY,
-  DECAY_THRESHOLD_DAYS,
-  DECAY_AMOUNT,
-  DECAY_FLOOR,
+  ABSENT_EFFECTIVE_SCORE,
+  ACTIVE_THRESHOLD_DAYS,
+  ABSENT_ELO_FLOOR,
 } from '@/features/elo/constants';

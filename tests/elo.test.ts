@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   calculateDailyEloChanges,
+  calculateAbsentPlayerEloChanges,
   getKFactor,
   type EloUpdate,
   type PlayerGame,
+  type AbsentPlayer,
 } from '@/features/elo/service';
 import {
   DEFAULT_ELO,
@@ -15,6 +17,7 @@ import {
   MIN_PLAYERS_FOR_ELO,
   FAIL_EFFECTIVE_SCORE,
   FAIL_PENALTY,
+  ABSENT_EFFECTIVE_SCORE,
 } from '@/features/elo/constants';
 
 // Test constants
@@ -330,6 +333,225 @@ describe('calculateDailyEloChanges', () => {
       ];
 
       const updates = calculateDailyEloChanges(players);
+
+      for (const update of updates) {
+        expect(Number.isInteger(update.newElo)).toBe(true);
+        expect(Number.isInteger(update.change)).toBe(true);
+      }
+    });
+  });
+});
+
+// Helper to create absent player
+function createAbsentPlayer(userId: number, elo: number, gamesPlayed = 50): AbsentPlayer {
+  return { userId, elo, gamesPlayed };
+}
+
+describe('calculateAbsentPlayerEloChanges', () => {
+  describe('Given no participants', () => {
+    it('Returns empty array (no competition)', () => {
+      const participants: PlayerGame[] = [];
+      const absentPlayers: AbsentPlayer[] = [
+        createAbsentPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO),
+      ];
+
+      const updates = calculateAbsentPlayerEloChanges(participants, absentPlayers);
+
+      expect(updates).toHaveLength(0);
+    });
+  });
+
+  describe('Given single participant', () => {
+    it('Returns empty array (need MIN_PLAYERS_FOR_ELO)', () => {
+      const participants: PlayerGame[] = [
+        createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.AVERAGE),
+      ];
+      const absentPlayers: AbsentPlayer[] = [
+        createAbsentPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO),
+      ];
+
+      const updates = calculateAbsentPlayerEloChanges(participants, absentPlayers);
+
+      expect(updates).toHaveLength(0);
+    });
+  });
+
+  describe('Given no absent players', () => {
+    it('Returns empty array', () => {
+      const participants: PlayerGame[] = [
+        createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.GOOD),
+        createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE),
+      ];
+      const absentPlayers: AbsentPlayer[] = [];
+
+      const updates = calculateAbsentPlayerEloChanges(participants, absentPlayers);
+
+      expect(updates).toHaveLength(0);
+    });
+  });
+
+  describe('Given absent player misses a day', () => {
+    it('Absent player loses ELO', () => {
+      const participants: PlayerGame[] = [
+        createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.GOOD),
+        createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE),
+      ];
+      const absentPlayers: AbsentPlayer[] = [
+        createAbsentPlayer(TEST_USER_IDS.CHARLIE, DEFAULT_ELO),
+      ];
+
+      const updates = calculateAbsentPlayerEloChanges(participants, absentPlayers);
+
+      expect(updates).toHaveLength(1);
+      expect(updates[0]!.userId).toBe(TEST_USER_IDS.CHARLIE);
+      expect(updates[0]!.change).toBeLessThan(0);
+      expect(updates[0]!.newElo).toBeLessThan(updates[0]!.oldElo);
+    });
+
+    it('Absent player is treated as having lost to all participants', () => {
+      const participants: PlayerGame[] = [
+        createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.AVERAGE),
+        createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE),
+      ];
+      const absentPlayers: AbsentPlayer[] = [
+        createAbsentPlayer(TEST_USER_IDS.CHARLIE, DEFAULT_ELO),
+      ];
+
+      const updates = calculateAbsentPlayerEloChanges(participants, absentPlayers);
+      const charlieUpdate = updates[0]!;
+
+      // Absent player should lose significant ELO (lost to 2 players)
+      expect(charlieUpdate.change).toBeLessThan(-5);
+    });
+  });
+
+  describe('Given more participants', () => {
+    it('Absent player loses more ELO with more participants', () => {
+      // 2 participants
+      const participants2: PlayerGame[] = [
+        createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.AVERAGE),
+        createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE),
+      ];
+      const absent2: AbsentPlayer[] = [createAbsentPlayer(TEST_USER_IDS.CHARLIE, DEFAULT_ELO)];
+      const updates2 = calculateAbsentPlayerEloChanges(participants2, absent2);
+
+      // 4 participants
+      const participants4: PlayerGame[] = [
+        createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.AVERAGE),
+        createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE),
+        createPlayer(3, DEFAULT_ELO, SCORES.AVERAGE),
+        createPlayer(4, DEFAULT_ELO, SCORES.AVERAGE),
+      ];
+      const absent4: AbsentPlayer[] = [createAbsentPlayer(TEST_USER_IDS.CHARLIE, DEFAULT_ELO)];
+      const updates4 = calculateAbsentPlayerEloChanges(participants4, absent4);
+
+      // More participants = more losses = bigger ELO drop
+      expect(updates4[0]!.change).toBeLessThan(updates2[0]!.change);
+    });
+  });
+
+  describe('Given absent player with high ELO', () => {
+    it('High ELO absent player loses more than low ELO absent player', () => {
+      const participants: PlayerGame[] = [
+        createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.AVERAGE),
+        createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE),
+      ];
+
+      const highEloAbsent: AbsentPlayer[] = [createAbsentPlayer(TEST_USER_IDS.CHARLIE, 1700)];
+      const lowEloAbsent: AbsentPlayer[] = [createAbsentPlayer(TEST_USER_IDS.DAVID, 1300)];
+
+      const highUpdates = calculateAbsentPlayerEloChanges(participants, highEloAbsent);
+      const lowUpdates = calculateAbsentPlayerEloChanges(participants, lowEloAbsent);
+
+      // High ELO player was expected to beat them, so loses more
+      expect(highUpdates[0]!.change).toBeLessThan(lowUpdates[0]!.change);
+    });
+  });
+
+  describe('Given multiple absent players', () => {
+    it('Returns updates for all absent players', () => {
+      const participants: PlayerGame[] = [
+        createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.AVERAGE),
+        createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE),
+      ];
+      const absentPlayers: AbsentPlayer[] = [
+        createAbsentPlayer(TEST_USER_IDS.CHARLIE, DEFAULT_ELO),
+        createAbsentPlayer(TEST_USER_IDS.DAVID, DEFAULT_ELO),
+      ];
+
+      const updates = calculateAbsentPlayerEloChanges(participants, absentPlayers);
+
+      expect(updates).toHaveLength(2);
+      expect(updates.every((u) => u.change < 0)).toBe(true);
+    });
+  });
+
+  describe('Given K-factor by games played', () => {
+    it('Provisional absent player loses more ELO', () => {
+      const participants: PlayerGame[] = [
+        createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.AVERAGE),
+        createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE),
+      ];
+
+      const provisionalAbsent: AbsentPlayer[] = [
+        createAbsentPlayer(TEST_USER_IDS.CHARLIE, DEFAULT_ELO, 5),
+      ];
+      const establishedAbsent: AbsentPlayer[] = [
+        createAbsentPlayer(TEST_USER_IDS.DAVID, DEFAULT_ELO, 100),
+      ];
+
+      const provisionalUpdates = calculateAbsentPlayerEloChanges(participants, provisionalAbsent);
+      const establishedUpdates = calculateAbsentPlayerEloChanges(participants, establishedAbsent);
+
+      // Provisional K=40, Established K=24 -> provisional loses more
+      expect(Math.abs(provisionalUpdates[0]!.change)).toBeGreaterThan(
+        Math.abs(establishedUpdates[0]!.change)
+      );
+    });
+  });
+
+  describe('Given ABSENT_EFFECTIVE_SCORE constant', () => {
+    it('Is greater than FAIL_EFFECTIVE_SCORE', () => {
+      // Absent should be worse than failing
+      expect(ABSENT_EFFECTIVE_SCORE).toBeGreaterThan(FAIL_EFFECTIVE_SCORE);
+    });
+  });
+
+  describe('Given EloUpdate structure', () => {
+    it('Returns correct structure with all fields', () => {
+      const participants: PlayerGame[] = [
+        createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.AVERAGE),
+        createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE),
+      ];
+      const absentPlayers: AbsentPlayer[] = [
+        createAbsentPlayer(TEST_USER_IDS.CHARLIE, DEFAULT_ELO),
+      ];
+
+      const updates = calculateAbsentPlayerEloChanges(participants, absentPlayers);
+
+      for (const update of updates) {
+        expect(update).toHaveProperty('userId');
+        expect(update).toHaveProperty('oldElo');
+        expect(update).toHaveProperty('newElo');
+        expect(update).toHaveProperty('change');
+        expect(typeof update.userId).toBe('number');
+        expect(typeof update.oldElo).toBe('number');
+        expect(typeof update.newElo).toBe('number');
+        expect(typeof update.change).toBe('number');
+        expect(update.newElo).toBe(update.oldElo + update.change);
+      }
+    });
+
+    it('ELO values are integers', () => {
+      const participants: PlayerGame[] = [
+        createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.AVERAGE),
+        createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE),
+      ];
+      const absentPlayers: AbsentPlayer[] = [
+        createAbsentPlayer(TEST_USER_IDS.CHARLIE, DEFAULT_ELO),
+      ];
+
+      const updates = calculateAbsentPlayerEloChanges(participants, absentPlayers);
 
       for (const update of updates) {
         expect(Number.isInteger(update.newElo)).toBe(true);

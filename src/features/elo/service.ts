@@ -9,6 +9,7 @@ import {
   EXPECTED_SCORE_MIN,
   EXPECTED_SCORE_MAX,
   FAIL_PENALTY,
+  ABSENT_ELO_FLOOR,
 } from '@/features/elo/constants';
 
 export interface PlayerGame {
@@ -23,6 +24,12 @@ export interface EloUpdate {
   oldElo: number;
   newElo: number;
   change: number;
+}
+
+export interface AbsentPlayer {
+  userId: number;
+  elo: number;
+  gamesPlayed: number;
 }
 
 /**
@@ -125,6 +132,61 @@ export function calculateDailyEloChanges(players: PlayerGame[]): EloUpdate[] {
       oldElo: player.elo,
       newElo: player.elo + change,
       change,
+    });
+  }
+
+  return updates;
+}
+
+/**
+ * Calculate ELO changes for absent players.
+ * Absent players are treated as having lost to all participants.
+ * The penalty scales with the number of participants (more people = more losses).
+ */
+export function calculateAbsentPlayerEloChanges(
+  participants: PlayerGame[],
+  absentPlayers: AbsentPlayer[]
+): EloUpdate[] {
+  // Not enough participants for meaningful competition
+  if (participants.length < MIN_PLAYERS_FOR_ELO) {
+    return [];
+  }
+
+  if (absentPlayers.length === 0) {
+    return [];
+  }
+
+  const updates: EloUpdate[] = [];
+
+  for (const absent of absentPlayers) {
+    let totalChange = 0;
+
+    // Calculate ELO change against each participant individually
+    for (const participant of participants) {
+      // Expected score against this participant (capped)
+      const expected = calculateExpectedScore(absent.elo, participant.elo);
+      const actual = 0; // Loss
+
+      // Calculate ELO change for this matchup
+      const kFactor = getKFactor(absent.gamesPlayed);
+      totalChange += kFactor * (actual - expected);
+    }
+
+    // Round the total change
+    let change = Math.round(totalChange);
+
+    // Minimum change for clear loss
+    if (change > -1) change = -1;
+
+    // Apply ELO floor
+    const newElo = Math.max(ABSENT_ELO_FLOOR, absent.elo + change);
+    const actualChange = newElo - absent.elo;
+
+    updates.push({
+      userId: absent.userId,
+      oldElo: absent.elo,
+      newElo,
+      change: actualChange,
     });
   }
 

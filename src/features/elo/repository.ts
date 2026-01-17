@@ -1,8 +1,8 @@
-import { eq, and, lt, gte, inArray } from 'drizzle-orm';
+import { eq, and, lt, gte, inArray, notInArray, isNotNull } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { users, games, eloHistory, type User } from '@/db/schema';
-import { DEFAULT_ELO, DECAY_FLOOR } from '@/features/elo/constants';
-import type { EloUpdate } from '@/features/elo/service';
+import { DEFAULT_ELO, ACTIVE_THRESHOLD_DAYS } from '@/features/elo/constants';
+import type { EloUpdate, AbsentPlayer } from '@/features/elo/service';
 
 export interface PlayerWithElo {
   userId: number;
@@ -32,6 +32,52 @@ export async function getPlayersForWordle(
     .where(and(eq(games.serverId, serverId), eq(games.wordleNumber, wordleNumber)));
 
   return results;
+}
+
+/**
+ * Get active users who didn't play a specific wordle.
+ * "Active" means they've played at least once in the last ACTIVE_THRESHOLD_DAYS.
+ */
+export async function getAbsentActiveUsers(
+  serverId: number,
+  wordleNumber: number,
+  referenceDate: Date
+): Promise<AbsentPlayer[]> {
+  const db = getDb();
+
+  // Get user IDs who played this wordle
+  const playedUserIds = await db
+    .selectDistinct({ userId: games.userId })
+    .from(games)
+    .where(and(eq(games.serverId, serverId), eq(games.wordleNumber, wordleNumber)));
+
+  const playedIds = playedUserIds.map((r) => r.userId);
+
+  // Calculate the threshold date for "active" users
+  const activeThreshold = new Date(
+    referenceDate.getTime() - ACTIVE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000
+  );
+
+  // Get active users who didn't play this wordle
+  const absentUsers = await db.query.users.findMany({
+    where: and(
+      eq(users.serverId, serverId),
+      isNotNull(users.lastPlayedAt),
+      gte(users.lastPlayedAt, activeThreshold),
+      playedIds.length > 0 ? notInArray(users.id, playedIds) : undefined
+    ),
+    columns: {
+      id: true,
+      elo: true,
+      eloGamesPlayed: true,
+    },
+  });
+
+  return absentUsers.map((u) => ({
+    userId: u.id,
+    elo: u.elo,
+    gamesPlayed: u.eloGamesPlayed,
+  }));
 }
 
 /**
@@ -129,6 +175,40 @@ export async function applyEloUpdates(
 }
 
 /**
+ * Apply ELO updates for absent players (no score, no games increment).
+ */
+export async function applyAbsentEloUpdates(
+  serverId: number,
+  wordleNumber: number,
+  updates: EloUpdate[],
+  participants: number,
+  playedAt: Date
+): Promise<void> {
+  const db = getDb();
+
+  for (const update of updates) {
+    // Update user ELO (don't increment games played for absences)
+    await db
+      .update(users)
+      .set({ elo: update.newElo })
+      .where(eq(users.id, update.userId));
+
+    // Insert ELO history record with null score to indicate absence
+    await db.insert(eloHistory).values({
+      userId: update.userId,
+      serverId,
+      wordleNumber,
+      oldElo: update.oldElo,
+      newElo: update.newElo,
+      change: update.change,
+      playerScore: null, // Absent
+      avgScore: 0,
+      participants,
+    });
+  }
+}
+
+/**
  * Check if ELO has already been calculated for a wordle number.
  */
 export async function hasEloBeenCalculated(
@@ -199,46 +279,6 @@ export async function clearServerEloHistory(serverId: number): Promise<void> {
   await db.delete(eloHistory).where(eq(eloHistory.serverId, serverId));
 }
 
-/**
- * Get users who haven't played since a certain date (for decay).
- */
-export async function getInactiveUsers(
-  serverId: number,
-  inactiveSince: Date
-): Promise<User[]> {
-  const db = getDb();
-  return db.query.users.findMany({
-    where: and(
-      eq(users.serverId, serverId),
-      lt(users.lastPlayedAt, inactiveSince)
-    ),
-  });
-}
-
-/**
- * Apply ELO decay to inactive users.
- */
-export async function applyEloDecay(
-  userIds: number[],
-  decayAmount: number
-): Promise<void> {
-  if (userIds.length === 0) return;
-
-  const db = getDb();
-
-  // Get current ELO for each user and apply decay
-  for (const userId of userIds) {
-    const user = await db.query.users.findFirst({
-      where: eq(users.id, userId),
-      columns: { elo: true },
-    });
-
-    if (user) {
-      const newElo = Math.max(DECAY_FLOOR, user.elo - decayAmount);
-      await db.update(users).set({ elo: newElo }).where(eq(users.id, userId));
-    }
-  }
-}
 
 /**
  * Get all unique wordle numbers for a server, ordered chronologically.

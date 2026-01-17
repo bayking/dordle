@@ -24,7 +24,12 @@ export const EXPECTED_SCORE_MAX = 0.9;
 // Additional penalty for failing (X/7)
 export const FAIL_PENALTY = 3;
 
-// ELO decay settings
-export const DECAY_THRESHOLD_DAYS = 7;
-export const DECAY_AMOUNT = 10;
-export const DECAY_FLOOR = 1200;
+// Absent players are treated as having this score (worse than failing)
+export const ABSENT_EFFECTIVE_SCORE = 10;
+
+// How many days of inactivity before a player is no longer "active"
+// (won't be penalized for missing days)
+export const ACTIVE_THRESHOLD_DAYS = 7;
+
+// ELO floor for absent penalty (don't drop below this)
+export const ABSENT_ELO_FLOOR = 1200;

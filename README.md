@@ -65,9 +65,13 @@ Failing a puzzle (X/6) carries extra consequences:
 - Treated as score 9 for comparisons (always loses to any success)
 - Additional -3 ELO penalty
 
-### Inactivity Decay
+### Missed Day Penalty
 
-Players who don't play for 7+ days lose 10 ELO per week (floor: 1200). This keeps the leaderboard competitive and rewards consistent play.
+Active players who miss a day are treated as having lost to everyone who played that day. This keeps the leaderboard competitive and rewards consistent play.
+
+- Only applies to "active" players (played within last 7 days)
+- ELO floor: 1200 (can't drop below this)
+- Missing when more players participated = larger penalty
 
 ### Example
 
