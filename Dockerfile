@@ -1,6 +1,9 @@
 FROM oven/bun:1.3 AS base
 WORKDIR /app
 
+# Install fonts for chart rendering
+RUN apt-get update && apt-get install -y fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
+
 FROM base AS install
 COPY package.json bun.lockb* ./
 RUN bun install --frozen-lockfile --production
