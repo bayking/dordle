@@ -2,9 +2,12 @@ export const DEFAULT_ELO = 1500;
 
 // K-factor determines how much ELO changes per game
 // Higher = more volatile, Lower = more stable
-export const K_FACTOR_PROVISIONAL = 40; // 0-10 games
-export const K_FACTOR_ESTABLISHING = 32; // 11-30 games
-export const K_FACTOR_ESTABLISHED = 24; // 31+ games
+export const K_FACTOR_PROVISIONAL = 80; // 0-10 games
+export const K_FACTOR_ESTABLISHING = 64; // 11-30 games
+export const K_FACTOR_ESTABLISHED = 48; // 31+ games
+
+// Bonus ELO for having the best score of the day
+export const DAILY_WINNER_BONUS = 10;
 
 // Game count thresholds for K-factor tiers
 export const PROVISIONAL_GAMES = 10;

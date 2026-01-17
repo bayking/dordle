@@ -18,6 +18,7 @@ import {
   FAIL_EFFECTIVE_SCORE,
   FAIL_PENALTY,
   ABSENT_EFFECTIVE_SCORE,
+  DAILY_WINNER_BONUS,
 } from '@/features/elo/constants';
 
 // Test constants
@@ -52,9 +53,9 @@ describe('ELO Constants', () => {
   });
 
   it('K-factors are correctly tiered', () => {
-    expect(K_FACTOR_PROVISIONAL).toBe(40);
-    expect(K_FACTOR_ESTABLISHING).toBe(32);
-    expect(K_FACTOR_ESTABLISHED).toBe(24);
+    expect(K_FACTOR_PROVISIONAL).toBe(80);
+    expect(K_FACTOR_ESTABLISHING).toBe(64);
+    expect(K_FACTOR_ESTABLISHED).toBe(48);
   });
 
   it('Game thresholds are defined', () => {
@@ -72,6 +73,10 @@ describe('ELO Constants', () => {
 
   it('FAIL_PENALTY is 3', () => {
     expect(FAIL_PENALTY).toBe(3);
+  });
+
+  it('DAILY_WINNER_BONUS is 10', () => {
+    expect(DAILY_WINNER_BONUS).toBe(10);
   });
 });
 
@@ -142,9 +147,9 @@ describe('calculateDailyEloChanges', () => {
       expect(charlieUpdate.change).toBeLessThan(0);
       expect(charlieUpdate.newElo).toBeLessThan(charlieUpdate.oldElo);
 
-      // ELO changes should roughly balance out (zero-sum)
+      // ELO changes should roughly balance out (zero-sum + winner bonus)
       const totalChange = updates.reduce((sum, u) => sum + u.change, 0);
-      expect(Math.abs(totalChange)).toBeLessThan(5); // Allow small rounding
+      expect(Math.abs(totalChange - DAILY_WINNER_BONUS)).toBeLessThan(5); // Allow small rounding
     });
   });
 
@@ -181,7 +186,7 @@ describe('calculateDailyEloChanges', () => {
       expect(bobUpdate.newElo).toBeLessThan(bobUpdate.oldElo);
     });
 
-    it('All failures still result in ELO loss', () => {
+    it('All failures still result in fail penalty applied', () => {
       const players: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.FAIL),
         createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.FAIL),
@@ -189,9 +194,11 @@ describe('calculateDailyEloChanges', () => {
 
       const updates = calculateDailyEloChanges(players);
 
-      // All players failed - both should lose ELO
+      // Both failed with same score, so both are "winners" and get bonus
+      // But fail penalty still applies - net is bonus - penalty
+      // With DAILY_WINNER_BONUS=10 and FAIL_PENALTY=3, change should be 7
       for (const update of updates) {
-        expect(update.change).toBeLessThan(0);
+        expect(update.change).toBe(DAILY_WINNER_BONUS - FAIL_PENALTY);
       }
     });
   });
@@ -298,8 +305,8 @@ describe('calculateDailyEloChanges', () => {
       const updates = calculateDailyEloChanges(players);
       const aliceUpdate = updates.find((u) => u.userId === TEST_USER_IDS.ALICE)!;
 
-      // Established K=24, should have smaller changes than provisional
-      expect(Math.abs(aliceUpdate.change)).toBeLessThan(20);
+      // Established K=48 + winner bonus, should have smaller changes than provisional K=80
+      expect(Math.abs(aliceUpdate.change)).toBeLessThan(45);
     });
   });
 
@@ -338,6 +345,55 @@ describe('calculateDailyEloChanges', () => {
         expect(Number.isInteger(update.newElo)).toBe(true);
         expect(Number.isInteger(update.change)).toBe(true);
       }
+    });
+  });
+
+  describe('Given daily winner bonus', () => {
+    it('Sole winner gets +10 bonus ELO', () => {
+      const players: PlayerGame[] = [
+        createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.EXCELLENT), // 2 - winner
+        createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE), // 4
+        createPlayer(TEST_USER_IDS.CHARLIE, DEFAULT_ELO, SCORES.POOR), // 6
+      ];
+
+      const updates = calculateDailyEloChanges(players);
+      const aliceUpdate = updates.find((u) => u.userId === TEST_USER_IDS.ALICE)!;
+      const bobUpdate = updates.find((u) => u.userId === TEST_USER_IDS.BOB)!;
+
+      // Alice should have bonus included in her change
+      // Bob should not have bonus
+      expect(aliceUpdate.change).toBeGreaterThan(bobUpdate.change + DAILY_WINNER_BONUS - 5);
+    });
+
+    it('Multiple winners with same best score all get bonus', () => {
+      const players: PlayerGame[] = [
+        createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.GOOD), // 3 - tied winner
+        createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.GOOD), // 3 - tied winner
+        createPlayer(TEST_USER_IDS.CHARLIE, DEFAULT_ELO, SCORES.POOR), // 6
+      ];
+
+      const updates = calculateDailyEloChanges(players);
+      const aliceUpdate = updates.find((u) => u.userId === TEST_USER_IDS.ALICE)!;
+      const bobUpdate = updates.find((u) => u.userId === TEST_USER_IDS.BOB)!;
+      const charlieUpdate = updates.find((u) => u.userId === TEST_USER_IDS.CHARLIE)!;
+
+      // Both Alice and Bob should have similar changes (both got bonus)
+      expect(Math.abs(aliceUpdate.change - bobUpdate.change)).toBeLessThan(3);
+      // Charlie should not have bonus
+      expect(charlieUpdate.change).toBeLessThan(aliceUpdate.change - DAILY_WINNER_BONUS / 2);
+    });
+
+    it('Winner bonus applies even with only 2 players', () => {
+      const players: PlayerGame[] = [
+        createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.GOOD), // 3 - winner
+        createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.POOR), // 6
+      ];
+
+      const updates = calculateDailyEloChanges(players);
+      const aliceUpdate = updates.find((u) => u.userId === TEST_USER_IDS.ALICE)!;
+
+      // Alice wins and gets bonus - should gain significantly
+      expect(aliceUpdate.change).toBeGreaterThan(DAILY_WINNER_BONUS);
     });
   });
 });

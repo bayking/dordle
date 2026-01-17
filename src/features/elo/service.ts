@@ -10,6 +10,7 @@ import {
   EXPECTED_SCORE_MAX,
   FAIL_PENALTY,
   ABSENT_ELO_FLOOR,
+  DAILY_WINNER_BONUS,
 } from '@/features/elo/constants';
 
 export interface PlayerGame {
@@ -80,6 +81,7 @@ function calculateActualResult(playerScore: number, opponentScore: number): numb
 /**
  * Calculate ELO changes for all players in a daily game using pairwise comparison.
  * Each player is compared head-to-head against every other player.
+ * Daily winner(s) with the best score get a bonus.
  */
 export function calculateDailyEloChanges(players: PlayerGame[]): EloUpdate[] {
   // Not enough players for meaningful competition
@@ -91,6 +93,9 @@ export function calculateDailyEloChanges(players: PlayerGame[]): EloUpdate[] {
       change: 0,
     }));
   }
+
+  // Find the best (lowest) score for winner bonus
+  const bestScore = Math.min(...players.map((p) => p.score));
 
   const updates: EloUpdate[] = [];
 
@@ -125,6 +130,11 @@ export function calculateDailyEloChanges(players: PlayerGame[]): EloUpdate[] {
     // Additional fail penalty
     if (player.score === 7) {
       change -= FAIL_PENALTY;
+    }
+
+    // Daily winner bonus for best score
+    if (player.score === bestScore) {
+      change += DAILY_WINNER_BONUS;
     }
 
     updates.push({

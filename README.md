@@ -53,11 +53,15 @@ The K-factor determines how much ratings can change per game:
 
 | Games Played | K-Factor | Status |
 |--------------|----------|--------|
-| 0-10 | 40 | Provisional |
-| 11-30 | 32 | Establishing |
-| 31+ | 24 | Established |
+| 0-10 | 80 | Provisional |
+| 11-30 | 64 | Establishing |
+| 31+ | 48 | Established |
 
 New players' ratings move faster, while experienced players have more stable ratings.
+
+### Daily Winner Bonus
+
+The player(s) with the best score each day receive a **+10 ELO bonus**.
 
 ### Fail Penalty
 
