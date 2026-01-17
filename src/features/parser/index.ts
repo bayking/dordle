@@ -28,6 +28,9 @@ export async function handleMessage(message: Message): Promise<void> {
 
   let wordleNumber: number | null = null;
 
+  // Wordle app posts "yesterday's results", so playedAt is one day before message
+  const playedAt = new Date(message.createdAt.getTime() - 86400000);
+
   for (const { discordId, username, score } of parsed.scores) {
     const resolved = await resolveUser(message.guild, { discordId, username });
     log.debug({ discordId, username, resolved }, 'resolved user');
@@ -39,7 +42,7 @@ export async function handleMessage(message: Message): Promise<void> {
       userId: user.id,
       score,
       messageId: message.id,
-      playedAt: message.createdAt,
+      playedAt,
     });
 
     if (game) {
@@ -53,7 +56,7 @@ export async function handleMessage(message: Message): Promise<void> {
   // Calculate ELO after all games for this wordle are recorded
   if (wordleNumber !== null) {
     try {
-      await processWordleElo(server.id, wordleNumber, message.createdAt);
+      await processWordleElo(server.id, wordleNumber, playedAt);
     } catch (error) {
       log.error({ error, serverId: server.id, wordleNumber }, 'Failed to process ELO');
     }
