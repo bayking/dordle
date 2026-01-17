@@ -103,6 +103,7 @@ export async function processWordleElo(
 /**
  * Recalculate all ELO for a server from scratch.
  * Used during backfill to ensure consistent ELO history.
+ * Applies absent penalties: once a player has played, missing any future wordle = loss.
  */
 export async function recalculateServerElo(serverId: number): Promise<{
   wordlesProcessed: number;
@@ -117,6 +118,8 @@ export async function recalculateServerElo(serverId: number): Promise<{
   // Get all wordle numbers in chronological order
   const wordleNumbers = await getWordleNumbersForServer(serverId);
 
+  // Track all players who have played at least once
+  const activePlayers = new Map<number, { elo: number; gamesPlayed: number }>();
   const playersAffected = new Set<number>();
   let wordlesProcessed = 0;
 
@@ -125,32 +128,33 @@ export async function recalculateServerElo(serverId: number): Promise<{
     const players = await getPlayersForWordle(serverId, wordleNumber);
 
     if (players.length >= MIN_PLAYERS_FOR_ELO) {
-      // Need to refetch players to get their CURRENT (updated) ELO
-      // since we're processing in order
-      const currentPlayers = await getPlayersForWordle(serverId, wordleNumber);
-
-      const playerGames: PlayerGame[] = currentPlayers.map((p) => ({
-        userId: p.userId,
-        elo: p.elo,
-        score: p.score,
-        gamesPlayed: p.gamesPlayed,
-      }));
+      const playerGames: PlayerGame[] = players.map((p) => {
+        // Use tracked ELO if we have it, otherwise use DB value
+        const tracked = activePlayers.get(p.userId);
+        return {
+          userId: p.userId,
+          elo: tracked?.elo ?? p.elo,
+          score: p.score,
+          gamesPlayed: tracked?.gamesPlayed ?? p.gamesPlayed,
+        };
+      });
 
       const updates = calculateDailyEloChanges(playerGames);
 
-      const effectiveScores = currentPlayers.map((p) =>
+      const effectiveScores = players.map((p) =>
         p.score === 7 ? FAIL_EFFECTIVE_SCORE : p.score
       );
       const avgScore =
         effectiveScores.reduce((a, b) => a + b, 0) / effectiveScores.length;
 
       const playerScores = new Map<number, number>();
-      for (const p of currentPlayers) {
+      const participantIds = new Set<number>();
+      for (const p of players) {
         playerScores.set(p.userId, p.score);
         playersAffected.add(p.userId);
+        participantIds.add(p.userId);
       }
 
-      // Use a date based on wordle number (approximate)
       const playedAt = new Date();
       await applyEloUpdates(
         serverId,
@@ -160,6 +164,43 @@ export async function recalculateServerElo(serverId: number): Promise<{
         avgScore,
         playedAt
       );
+
+      // Update tracked ELO for participants
+      for (const update of updates) {
+        const current = activePlayers.get(update.userId);
+        activePlayers.set(update.userId, {
+          elo: update.newElo,
+          gamesPlayed: (current?.gamesPlayed ?? 0) + 1,
+        });
+      }
+
+      // Apply absent penalties to players who have played before but missed this one
+      const absentPlayers = [...activePlayers.entries()]
+        .filter(([userId]) => !participantIds.has(userId))
+        .map(([userId, data]) => ({
+          userId,
+          elo: data.elo,
+          gamesPlayed: data.gamesPlayed,
+        }));
+
+      if (absentPlayers.length > 0) {
+        const absentUpdates = calculateAbsentPlayerEloChanges(playerGames, absentPlayers);
+        await applyAbsentEloUpdates(serverId, wordleNumber, absentUpdates, players.length, playedAt);
+
+        // Update tracked ELO for absent players
+        for (const update of absentUpdates) {
+          const current = activePlayers.get(update.userId)!;
+          activePlayers.set(update.userId, {
+            elo: update.newElo,
+            gamesPlayed: current.gamesPlayed,
+          });
+        }
+
+        log.debug(
+          { wordleNumber, absentCount: absentPlayers.length },
+          'Applied absent penalties during recalculation'
+        );
+      }
 
       wordlesProcessed++;
     }
