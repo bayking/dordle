@@ -45,6 +45,30 @@ function createGames(userGames: { userId: number; scores: Score[] }[]): Game[] {
   return games;
 }
 
+// Helper to create games with specific wordle numbers (for testing gaps)
+function createGamesWithWordleNumbers(
+  userGames: { userId: number; wordleNumbers: number[]; scores: Score[] }[]
+): Game[] {
+  const games: Game[] = [];
+  let gameId = 1;
+
+  for (const { userId, wordleNumbers, scores } of userGames) {
+    for (let i = 0; i < scores.length; i++) {
+      games.push({
+        id: gameId++,
+        serverId: TEST_SERVER_ID,
+        userId,
+        wordleNumber: wordleNumbers[i]!,
+        score: scores[i]!,
+        playedAt: new Date(Date.now() - (scores.length - i) * 86400000),
+        messageId: null,
+      });
+    }
+  }
+
+  return games;
+}
+
 const GAME_DATA = {
   FIVE_USERS_VARIOUS_STATS: [
     { userId: 1, scores: [Score.Three, Score.Three, Score.Four] }, // avg 3.33
@@ -170,6 +194,93 @@ describe('Leaderboard', () => {
         expect(entry!.currentStreak).toBe(expected.currentStreak);
         expect(entry!.maxStreak).toBe(expected.maxStreak);
       }
+    });
+  });
+
+  describe('Given players with missed wordles', () => {
+    it('When player has no gaps, Then average unchanged', async () => {
+      // Player played all consecutive wordles 1000, 1001, 1002
+      mockFindUsersByServer.mockResolvedValue([USERS[0]!]);
+      mockFindGamesByServerAndPeriod.mockResolvedValue(
+        createGamesWithWordleNumbers([
+          { userId: 1, wordleNumbers: [1000, 1001, 1002], scores: [Score.Three, Score.Four, Score.Three] },
+        ])
+      );
+
+      const leaderboard = await getLeaderboard(TEST_SERVER_ID, LeaderboardPeriod.AllTime);
+
+      // avg = (3+4+3)/3 = 3.33
+      expect(leaderboard[0]!.average).toBeCloseTo(3.33, 2);
+    });
+
+    it('When player skips a wordle, Then gap counts as 7 in average', async () => {
+      // Player played 1000, skipped 1001, played 1002
+      mockFindUsersByServer.mockResolvedValue([USERS[0]!]);
+      mockFindGamesByServerAndPeriod.mockResolvedValue(
+        createGamesWithWordleNumbers([
+          { userId: 1, wordleNumbers: [1000, 1002], scores: [Score.Three, Score.Three] },
+        ])
+      );
+
+      const leaderboard = await getLeaderboard(TEST_SERVER_ID, LeaderboardPeriod.AllTime);
+
+      // avg = (3+7+3)/3 = 4.33 (includes missed 1001 as 7)
+      expect(leaderboard[0]!.average).toBeCloseTo(4.33, 2);
+    });
+
+    it('When player skips multiple wordles, Then all gaps count as 7', async () => {
+      // Player played 1000, skipped 1001, 1002, 1003, played 1004
+      mockFindUsersByServer.mockResolvedValue([USERS[0]!]);
+      mockFindGamesByServerAndPeriod.mockResolvedValue(
+        createGamesWithWordleNumbers([
+          { userId: 1, wordleNumbers: [1000, 1004], scores: [Score.Three, Score.Three] },
+        ])
+      );
+
+      const leaderboard = await getLeaderboard(TEST_SERVER_ID, LeaderboardPeriod.AllTime);
+
+      // avg = (3+7+7+7+3)/5 = 5.4 (includes 3 misses as 7)
+      expect(leaderboard[0]!.average).toBeCloseTo(5.4, 2);
+    });
+
+    it('When multiple players have different gap patterns, Then each calculated correctly', async () => {
+      // Player 1: played all (1000, 1001, 1002) - no gaps
+      // Player 2: skipped 1001 (played 1000, 1002) - one gap
+      mockFindUsersByServer.mockResolvedValue([USERS[0]!, USERS[1]!]);
+      mockFindGamesByServerAndPeriod.mockResolvedValue(
+        createGamesWithWordleNumbers([
+          { userId: 1, wordleNumbers: [1000, 1001, 1002], scores: [Score.Three, Score.Three, Score.Three] },
+          { userId: 2, wordleNumbers: [1000, 1002], scores: [Score.Three, Score.Three] },
+        ])
+      );
+
+      const leaderboard = await getLeaderboard(TEST_SERVER_ID, LeaderboardPeriod.AllTime);
+
+      const user1 = leaderboard.find((e) => e.discordId === 'user1')!;
+      const user2 = leaderboard.find((e) => e.discordId === 'user2')!;
+
+      // User1: (3+3+3)/3 = 3.0
+      expect(user1.average).toBeCloseTo(3.0, 2);
+      // User2: (3+7+3)/3 = 4.33
+      expect(user2.average).toBeCloseTo(4.33, 2);
+    });
+
+    it('When player misses wordle at end of range (another player has higher wordle), Then end gap counts', async () => {
+      // Player 1: played 1000, 1001, 1002
+      // Player 2: played 1000 only (missed 1001, 1002)
+      mockFindUsersByServer.mockResolvedValue([USERS[0]!, USERS[1]!]);
+      mockFindGamesByServerAndPeriod.mockResolvedValue(
+        createGamesWithWordleNumbers([
+          { userId: 1, wordleNumbers: [1000, 1001, 1002], scores: [Score.Three, Score.Three, Score.Three] },
+          { userId: 2, wordleNumbers: [1000], scores: [Score.Four] },
+        ])
+      );
+
+      const leaderboard = await getLeaderboard(TEST_SERVER_ID, LeaderboardPeriod.AllTime);
+
+      const user2 = leaderboard.find((e) => e.discordId === 'user2')!;
+      // User2: (4+7+7)/3 = 6.0 (played 1000, missed 1001, 1002)
+      expect(user2.average).toBeCloseTo(6.0, 2);
     });
   });
 });

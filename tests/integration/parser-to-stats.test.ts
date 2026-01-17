@@ -242,7 +242,7 @@ describe('Parser to Leaderboard Integration', () => {
     expect(leaderboard[1]!.rank).toBe(1);
   });
 
-  it('Given user with only fails, When leaderboard generated, Then has Infinity average', async () => {
+  it('Given user with only fails, When leaderboard generated, Then has average of 7', async () => {
     const server = await getOrCreateServer(TEST_SERVER_DISCORD_ID);
 
     const alice = await getOrCreateUser(server.id, DISCORD_IDS.ALICE, USERNAMES.ALICE);
@@ -254,11 +254,11 @@ describe('Parser to Leaderboard Integration', () => {
     const leaderboard = await getLeaderboard(server.id, LeaderboardPeriod.AllTime);
 
     expect(leaderboard).toHaveLength(2);
-    // Same ELO, sorted by average (Infinity comes last)
+    // Same ELO, sorted by average (7 comes after 3)
     expect(leaderboard[0]!.discordId).toBe(DISCORD_IDS.ALICE);
     expect(leaderboard[0]!.average).toBe(3);
     expect(leaderboard[1]!.discordId).toBe(DISCORD_IDS.BOB);
-    expect(leaderboard[1]!.average).toBe(Infinity);
+    expect(leaderboard[1]!.average).toBe(7); // Fail = 7
   });
 });
 

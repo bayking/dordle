@@ -67,11 +67,19 @@ Failing a puzzle (X/6) carries extra consequences:
 
 ### Missed Day Penalty
 
-Active players who miss a day are treated as having lost to everyone who played that day. This keeps the leaderboard competitive and rewards consistent play.
+Once you've played your first game, missing any subsequent day has consequences:
 
-- Only applies to "active" players (played within last 7 days)
-- ELO floor: 1200 (can't drop below this)
+**ELO Impact:**
+- Treated as having lost to everyone who played that day
 - Missing when more players participated = larger penalty
+- ELO floor: 1200 (can't drop below this)
+
+**Average Impact:**
+- Missed days count as a fail (7) toward your average score
+- Your average is calculated from your first game to the current day
+- Example: If you played wordle #1000 (score 3), missed #1001, and played #1002 (score 3), your average is (3+7+3)/3 = 4.33
+
+This keeps the leaderboard competitive and rewards consistent play.
 
 ### Example
 

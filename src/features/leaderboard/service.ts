@@ -21,6 +21,38 @@ function calculateStreaks(games: Game[]): { currentStreak: number; maxStreak: nu
   return { currentStreak: streak, maxStreak };
 }
 
+/**
+ * Calculate average score including missed wordles as fails (7).
+ * Range: from player's first wordle to max wordle in the dataset.
+ */
+function calculateAverageWithMisses(userGames: Game[], maxWordleNumber: number): number {
+  if (userGames.length === 0) return Infinity;
+
+  // Find player's first and last wordle
+  const wordleNumbers = userGames.map((g) => g.wordleNumber);
+  const minWordle = Math.min(...wordleNumbers);
+
+  // Build set of wordles the player actually played
+  const playedWordles = new Set(wordleNumbers);
+
+  // Sum scores: played games + missed games as 7
+  let totalScore = 0;
+  let totalGames = 0;
+
+  for (let wn = minWordle; wn <= maxWordleNumber; wn++) {
+    if (playedWordles.has(wn)) {
+      const game = userGames.find((g) => g.wordleNumber === wn)!;
+      totalScore += game.score;
+    } else {
+      // Missed wordle counts as 7
+      totalScore += Score.Fail;
+    }
+    totalGames++;
+  }
+
+  return totalGames > 0 ? totalScore / totalGames : Infinity;
+}
+
 export enum LeaderboardPeriod {
   AllTime = 'all',
   Weekly = 'weekly',
@@ -57,17 +89,20 @@ export async function getLeaderboard(
     gamesByUser.set(game.userId, userGames);
   }
 
+  // Find the max wordle number across all games
+  const maxWordleNumber = games.length > 0
+    ? Math.max(...games.map((g) => g.wordleNumber))
+    : 0;
+
   const entries: Omit<LeaderboardEntry, 'rank'>[] = [];
 
   for (const user of users) {
     const userGames = gamesByUser.get(user.id);
     if (!userGames || userGames.length === 0) continue;
 
+    // Calculate average including missed wordles as 7
+    const average = calculateAverageWithMisses(userGames, maxWordleNumber);
     const winningGames = userGames.filter((g) => g.score !== Score.Fail);
-    const winScores = winningGames.map((g) => g.score);
-    const average = winScores.length > 0
-      ? winScores.reduce((a, b) => a + b, 0) / winScores.length
-      : Infinity;
     const { currentStreak, maxStreak } = calculateStreaks(userGames);
 
     entries.push({
