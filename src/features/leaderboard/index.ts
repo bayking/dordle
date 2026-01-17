@@ -30,9 +30,10 @@ export async function formatLeaderboardEmbed(
     const avg = entry.average === Infinity ? 'N/A' : entry.average.toFixed(2);
     const streak = entry.currentStreak > 0 ? ` 🔥${entry.currentStreak}` : '';
     const provisional = entry.eloGamesPlayed <= PROVISIONAL_GAMES ? '*' : '';
+    const missed = entry.missedDays > 0 ? ` (${entry.missedDays} missed)` : '';
 
     lines.push(
-      `${medal} **${name}** - ${entry.elo}${provisional} ELO │ ${avg} avg │ ${entry.gamesPlayed} games${streak}`
+      `${medal} **${name}** - ${entry.elo}${provisional} ELO │ ${avg} avg │ ${entry.gamesPlayed} games${missed}${streak}`
     );
   }
 

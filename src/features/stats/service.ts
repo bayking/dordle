@@ -13,6 +13,7 @@ export enum Score {
 
 export interface UserStats {
   totalGames: number;
+  missedDays: number;
   wins: number;
   winRate: number;
   average: number | null;
@@ -120,8 +121,16 @@ export async function calculateUserStats(userId: number): Promise<UserStats | nu
 
   const { currentStreak, maxStreak, streakAverage } = calculateStreaks(games);
 
+  // Calculate missed days (from first game to today's wordle)
+  const wordleNumbers = games.map((g) => g.wordleNumber);
+  const minWordle = Math.min(...wordleNumbers);
+  const currentWordle = getWordleNumber(new Date());
+  const expectedGames = currentWordle - minWordle + 1;
+  const missedDays = expectedGames - games.length;
+
   return {
     totalGames: games.length,
+    missedDays,
     wins: wins.length,
     winRate: (wins.length / games.length) * 100,
     average: winScores.length > 0 ? winScores.reduce((a, b) => a + b, 0) / winScores.length : null,

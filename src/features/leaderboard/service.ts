@@ -64,6 +64,7 @@ export interface LeaderboardEntry {
   discordId: string;
   wordleUsername: string | null;
   gamesPlayed: number;
+  missedDays: number;
   average: number;
   wins: number;
   winRate: number;
@@ -105,10 +106,16 @@ export async function getLeaderboard(
     const winningGames = userGames.filter((g) => g.score !== Score.Fail);
     const { currentStreak, maxStreak } = calculateStreaks(userGames);
 
+    // Calculate missed days (from first game to max wordle)
+    const minWordle = Math.min(...userGames.map((g) => g.wordleNumber));
+    const expectedGames = maxWordleNumber - minWordle + 1;
+    const missedDays = expectedGames - userGames.length;
+
     entries.push({
       discordId: user.discordId,
       wordleUsername: user.wordleUsername,
       gamesPlayed: userGames.length,
+      missedDays,
       average,
       wins: winningGames.length,
       winRate: (winningGames.length / userGames.length) * 100,

@@ -39,6 +39,7 @@ export function formatStatsEmbed(user: DiscordUser, stats: UserStats): EmbedBuil
     .setColor(0x6aaa64)
     .addFields(
       { name: 'Games', value: stats.totalGames.toString(), inline: true },
+      { name: 'Missed', value: stats.missedDays.toString(), inline: true },
       { name: 'Win Rate', value: `${stats.winRate.toFixed(1)}%`, inline: true },
       { name: 'Average', value: avgDisplay, inline: true },
       { name: 'Best', value: formatScore(stats.best), inline: true },
