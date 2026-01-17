@@ -77,7 +77,7 @@ export const eloHistory = sqliteTable(
     oldElo: integer('old_elo').notNull(),
     newElo: integer('new_elo').notNull(),
     change: integer('change').notNull(),
-    playerScore: integer('player_score').notNull(),
+    playerScore: integer('player_score'), // nullable for absent players
     avgScore: integer('avg_score').notNull(), // stored as score * 100 for precision
     participants: integer('participants').notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' })

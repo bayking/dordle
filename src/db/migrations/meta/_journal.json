@@ -8,6 +8,13 @@
       "when": 1768561541406,
       "tag": "0000_wise_vulcan",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1768651915797,
+      "tag": "0001_curly_wither",
+      "breakpoints": true
     }
   ]
 }
