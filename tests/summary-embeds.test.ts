@@ -159,6 +159,21 @@ describe('Monthly Summary Embed', () => {
         gamesPlayed: 20,
         average: 3.5,
       },
+      rankings: [
+        {
+          userId: 1,
+          discordId: DISCORD_IDS.ALICE,
+          wordleUsername: USERNAMES.ALICE,
+          gamesPlayed: 20,
+          missedDays: 2,
+          average: 3.5,
+          rank: 1,
+          currentStreak: 5,
+          maxStreak: 10,
+          elo: 1550,
+          eloGamesPlayed: 20,
+        },
+      ],
       bestScore: Score.Two,
       averageScore: 4.1,
     };
@@ -181,6 +196,7 @@ describe('Monthly Summary Embed', () => {
     const summary: MonthlySummary = {
       totalGames: 0,
       champion: null,
+      rankings: [],
       bestScore: null,
       averageScore: null,
     };

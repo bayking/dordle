@@ -161,6 +161,22 @@ export async function formatMonthlySummaryEmbed(
     lines.push(`   ${avg} avg across ${summary.champion.gamesPlayed} games\n`);
   }
 
+  // Rankings by ELO
+  if (summary.rankings.length > 0) {
+    lines.push('**Rankings:**');
+    for (let i = 0; i < Math.min(summary.rankings.length, 10); i++) {
+      const player = summary.rankings[i]!;
+      const medal = MEDALS[i] ?? `${i + 1}.`;
+      const name = await resolveUsername(client, player.discordId, player.wordleUsername);
+      const avg = player.average === Infinity ? 'X' : player.average.toFixed(2);
+      const streak = player.currentStreak > 0 ? ` 🔥${player.currentStreak}` : '';
+      const provisional = player.eloGamesPlayed <= PROVISIONAL_GAMES ? '*' : '';
+      const missed = player.missedDays > 0 ? ` (${player.missedDays} missed)` : '';
+      lines.push(`${medal} **${name}** - ${player.elo}${provisional} ELO │ ${avg} avg │ ${player.gamesPlayed} games${missed}${streak}`);
+    }
+    lines.push('');
+  }
+
   if (summary.bestScore !== null) {
     lines.push(`⭐ **Best Score:** ${formatScore(summary.bestScore)}/6`);
   }
@@ -170,6 +186,7 @@ export async function formatMonthlySummaryEmbed(
   }
 
   embed.setDescription(lines.join('\n'));
+  embed.setFooter({ text: '* Provisional rating (< 10 games)' });
 
   return embed;
 }

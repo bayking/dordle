@@ -79,6 +79,7 @@ export interface Champion {
 export interface MonthlySummary {
   totalGames: number;
   champion: Champion | null;
+  rankings: RankedPlayer[];
   bestScore: Score | null;
   averageScore: number | null;
 }
@@ -366,6 +367,7 @@ export async function generateMonthlySummary(
     return {
       totalGames: 0,
       champion: null,
+      rankings: [],
       bestScore: null,
       averageScore: null,
     };
@@ -378,6 +380,11 @@ export async function generateMonthlySummary(
     gamesByUser.set(game.userId, userGames);
   }
 
+  // Find the range of wordles in this period
+  const allWordleNumbers = games.map((g) => g.wordleNumber);
+  const maxWordle = Math.max(...allWordleNumbers);
+
+  const playerStats: Omit<RankedPlayer, 'rank'>[] = [];
   let champion: Champion | null = null;
   let bestChampionScore = Infinity;
 
@@ -387,6 +394,26 @@ export async function generateMonthlySummary(
     const average = winningGames.length > 0
       ? winningGames.reduce((sum, g) => sum + g.score, 0) / winningGames.length
       : Infinity;
+    const { currentStreak, maxStreak } = calculateStreaks(userGames);
+
+    // Calculate missed days
+    const playerWordleNumbers = userGames.map((g) => g.wordleNumber);
+    const playerMinWordle = Math.min(...playerWordleNumbers);
+    const expectedGames = maxWordle - playerMinWordle + 1;
+    const missedDays = expectedGames - userGames.length;
+
+    playerStats.push({
+      userId,
+      discordId: user?.discordId ?? '',
+      wordleUsername: user?.wordleUsername ?? null,
+      gamesPlayed: userGames.length,
+      missedDays,
+      average,
+      currentStreak,
+      maxStreak,
+      elo: user?.elo ?? 1500,
+      eloGamesPlayed: user?.eloGamesPlayed ?? 0,
+    });
 
     if (average < bestChampionScore) {
       bestChampionScore = average;
@@ -400,6 +427,17 @@ export async function generateMonthlySummary(
     }
   }
 
+  // Sort by ELO (higher is better), then by average (lower is better)
+  playerStats.sort((a, b) => {
+    if (b.elo !== a.elo) return b.elo - a.elo;
+    return a.average - b.average;
+  });
+
+  const rankings: RankedPlayer[] = playerStats.map((player, index) => ({
+    ...player,
+    rank: index + 1,
+  }));
+
   const allScores = games.map((g) => g.score);
   const winningScores = allScores.filter((s) => s !== Score.Fail);
   const bestScore = winningScores.length > 0 ? Math.min(...winningScores) as Score : null;
@@ -410,6 +448,7 @@ export async function generateMonthlySummary(
   return {
     totalGames: games.length,
     champion,
+    rankings,
     bestScore,
     averageScore,
   };
