@@ -38,12 +38,16 @@ function getPeriodStart(period: LeaderboardPeriod): Date | null {
       const diff = start.getDate() - day + (day === 0 ? -6 : 1);
       start.setDate(diff);
       start.setHours(0, 0, 0, 0);
+      // Subtract 1 day to account for playedAt backdate in parser
+      start.setTime(start.getTime() - 86400000);
       return start;
     }
     case LeaderboardPeriod.Monthly: {
       const start = new Date(now);
       start.setDate(1);
       start.setHours(0, 0, 0, 0);
+      // Subtract 1 day to account for playedAt backdate in parser
+      start.setTime(start.getTime() - 86400000);
       return start;
     }
     case LeaderboardPeriod.AllTime:
