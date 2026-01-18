@@ -160,6 +160,19 @@ describe('Summary Generation', () => {
   });
 
   describe('Weekly Summary', () => {
+    it('Given reference date, When weekly summary generated, Then queries 7 days ending on reference date', async () => {
+      mockFindGamesByServerAndDateRange.mockResolvedValue([]);
+      mockFindUsersByServer.mockResolvedValue([]);
+
+      await generateWeeklySummary(TEST_SERVER_ID, TEST_DATE);
+
+      const [, start, end] = mockFindGamesByServerAndDateRange.mock.calls[0];
+      // End should be reference date (Jan 15), not yesterday
+      expect(end.toISOString()).toContain('2024-01-15');
+      // Start should be 6 days before (Jan 9)
+      expect(start.toISOString()).toContain('2024-01-09');
+    });
+
     it('Given week of games, When weekly summary generated, Then includes rankings', async () => {
       const games = [
         // Alice: avg 3.0
@@ -240,6 +253,19 @@ describe('Summary Generation', () => {
   });
 
   describe('Monthly Summary', () => {
+    it('Given reference date, When monthly summary generated, Then queries 1 month ending on reference date', async () => {
+      mockFindGamesByServerAndDateRange.mockResolvedValue([]);
+      mockFindUsersByServer.mockResolvedValue([]);
+
+      await generateMonthlySummary(TEST_SERVER_ID, TEST_DATE);
+
+      const [, start, end] = mockFindGamesByServerAndDateRange.mock.calls[0];
+      // End should be reference date (Jan 15), not yesterday
+      expect(end.toISOString()).toContain('2024-01-15');
+      // Start should be 1 month before (Dec 15)
+      expect(start.toISOString()).toContain('2023-12-15');
+    });
+
     it('Given month of games, When monthly summary generated, Then includes champion', async () => {
       const games = [
         // Alice plays more with better average

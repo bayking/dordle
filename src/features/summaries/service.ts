@@ -105,7 +105,8 @@ function getYesterday(date: Date): { start: Date; end: Date } {
 }
 
 function getLastWeek(date: Date): { start: Date; end: Date } {
-  const end = new Date(date.getTime() - 86400000);
+  // Don't subtract 1 day from end - playedAt is already backdated by 1 day in parser
+  const end = date;
   const start = new Date(end.getTime() - 6 * 86400000);
   return {
     start: getStartOfDay(start),
@@ -114,7 +115,8 @@ function getLastWeek(date: Date): { start: Date; end: Date } {
 }
 
 function getLastMonth(date: Date): { start: Date; end: Date } {
-  const end = new Date(date.getTime() - 86400000);
+  // Don't subtract 1 day from end - playedAt is already backdated by 1 day in parser
+  const end = date;
   const start = new Date(end);
   start.setUTCMonth(start.getUTCMonth() - 1);
   return {
