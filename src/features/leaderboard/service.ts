@@ -61,6 +61,7 @@ export enum LeaderboardPeriod {
 
 export interface LeaderboardEntry {
   rank: number;
+  userId: number;
   discordId: string;
   wordleUsername: string | null;
   gamesPlayed: number;
@@ -112,6 +113,7 @@ export async function getLeaderboard(
     const missedDays = expectedGames - userGames.length;
 
     entries.push({
+      userId: user.id,
       discordId: user.discordId,
       wordleUsername: user.wordleUsername,
       gamesPlayed: userGames.length,

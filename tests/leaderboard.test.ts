@@ -112,6 +112,25 @@ describe('Leaderboard', () => {
   });
 
   describe('Given 5 users with various stats', () => {
+    it('When leaderboard generated, Then entries include userId for chart data', async () => {
+      mockFindUsersByServer.mockResolvedValue(USERS);
+      mockFindGamesByServerAndPeriod.mockResolvedValue(
+        createGames(GAME_DATA.FIVE_USERS_VARIOUS_STATS)
+      );
+
+      const leaderboard = await getLeaderboard(TEST_SERVER_ID, LeaderboardPeriod.AllTime);
+
+      // userId is required for fetching ELO history for charts
+      for (const entry of leaderboard) {
+        expect(entry.userId).toBeDefined();
+        expect(typeof entry.userId).toBe('number');
+      }
+
+      // Verify specific user IDs match
+      expect(leaderboard.find((e) => e.discordId === 'user1')?.userId).toBe(1);
+      expect(leaderboard.find((e) => e.discordId === 'user3')?.userId).toBe(3);
+    });
+
     it('When leaderboard generated, Then ranked by ELO with ties handled', async () => {
       mockFindUsersByServer.mockResolvedValue(USERS);
       mockFindGamesByServerAndPeriod.mockResolvedValue(
