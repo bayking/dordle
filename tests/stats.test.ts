@@ -1,13 +1,17 @@
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { calculateUserStats, Score } from '@/features/stats/service';
-import * as repo from '@/features/stats/repository';
+import { describe, test, expect, mock, beforeEach } from 'bun:test';
+import { Score } from '@/features/stats/service';
 import type { Game } from '@/db/schema';
 
-vi.mock('@/features/stats/repository', () => ({
-  findGamesByUserId: vi.fn(),
+// Create mock
+const mockFindGamesByUserId = mock(() => Promise.resolve([]));
+
+// Mock module before importing the service
+mock.module('@/features/stats/repository', () => ({
+  findGamesByUserId: mockFindGamesByUserId,
 }));
 
-const mockFindGamesByUserId = repo.findGamesByUserId as Mock;
+// Import after mocking
+const { calculateUserStats } = await import('@/features/stats/service');
 
 // Test constants
 const TEST_USER_ID = 1;
@@ -93,11 +97,11 @@ function createMockGames(scores: readonly Score[]): Game[] {
 
 describe('Stats Calculations', () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    mockFindGamesByUserId.mockClear();
   });
 
   describe('Given a user with mixed results including a failure', () => {
-    it('When stats calculated, Then returns correct win rate, average, best, and worst', async () => {
+    test('When stats calculated, Then returns correct win rate, average, best, and worst', async () => {
       mockFindGamesByUserId.mockResolvedValue(
         createMockGames(SCORES.MIXED_WITH_FAIL)
       );
@@ -115,7 +119,7 @@ describe('Stats Calculations', () => {
   });
 
   describe('Given consecutive wins', () => {
-    it('When streak calculated, Then current and max streak are correct', async () => {
+    test('When streak calculated, Then current and max streak are correct', async () => {
       mockFindGamesByUserId.mockResolvedValue(
         createMockGames(SCORES.ALL_WINS)
       );
@@ -127,7 +131,7 @@ describe('Stats Calculations', () => {
       expect(stats!.maxStreak).toBe(EXPECTED.ALL_WINS.maxStreak);
     });
 
-    it('When streak broken by failure, Then current streak resets', async () => {
+    test('When streak broken by failure, Then current streak resets', async () => {
       mockFindGamesByUserId.mockResolvedValue(
         createMockGames(SCORES.BROKEN_STREAK)
       );
@@ -139,7 +143,7 @@ describe('Stats Calculations', () => {
       expect(stats!.maxStreak).toBe(EXPECTED.BROKEN_STREAK.maxStreak);
     });
 
-    it('When multiple streaks exist, Then max streak is the highest', async () => {
+    test('When multiple streaks exist, Then max streak is the highest', async () => {
       mockFindGamesByUserId.mockResolvedValue(
         createMockGames(SCORES.MULTIPLE_STREAKS)
       );
@@ -153,7 +157,7 @@ describe('Stats Calculations', () => {
   });
 
   describe('Given full score distribution', () => {
-    it('When distribution calculated, Then returns correct histogram', async () => {
+    test('When distribution calculated, Then returns correct histogram', async () => {
       mockFindGamesByUserId.mockResolvedValue(
         createMockGames(SCORES.FULL_DISTRIBUTION)
       );
@@ -166,7 +170,7 @@ describe('Stats Calculations', () => {
   });
 
   describe('Given user with no games', () => {
-    it('When stats calculated, Then returns null', async () => {
+    test('When stats calculated, Then returns null', async () => {
       mockFindGamesByUserId.mockResolvedValue([]);
 
       const stats = await calculateUserStats(TEST_USER_ID);
@@ -176,7 +180,7 @@ describe('Stats Calculations', () => {
   });
 
   describe('Given user with all failures', () => {
-    it('When stats calculated, Then win rate is zero and average is null', async () => {
+    test('When stats calculated, Then win rate is zero and average is null', async () => {
       mockFindGamesByUserId.mockResolvedValue(
         createMockGames(SCORES.ALL_FAILURES)
       );
@@ -193,7 +197,7 @@ describe('Stats Calculations', () => {
   });
 
   describe('Given streak average calculation', () => {
-    it('When all games are wins, Then streak average is average of all scores', async () => {
+    test('When all games are wins, Then streak average is average of all scores', async () => {
       mockFindGamesByUserId.mockResolvedValue(
         createMockGames(SCORES.STREAK_AVG_TEST)
       );
@@ -205,7 +209,7 @@ describe('Stats Calculations', () => {
       expect(stats!.streakAverage).toBe(EXPECTED.STREAK_AVG_TEST.streakAverage);
     });
 
-    it('When streak starts after a fail, Then streak average only includes current streak', async () => {
+    test('When streak starts after a fail, Then streak average only includes current streak', async () => {
       mockFindGamesByUserId.mockResolvedValue(
         createMockGames(SCORES.STREAK_AFTER_FAIL)
       );
@@ -217,7 +221,7 @@ describe('Stats Calculations', () => {
       expect(stats!.streakAverage).toBe(EXPECTED.STREAK_AFTER_FAIL.streakAverage);
     });
 
-    it('When no current streak, Then streak average is null', async () => {
+    test('When no current streak, Then streak average is null', async () => {
       mockFindGamesByUserId.mockResolvedValue(
         createMockGames(SCORES.ALL_FAILURES)
       );

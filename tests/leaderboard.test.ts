@@ -1,16 +1,19 @@
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { getLeaderboard, LeaderboardPeriod } from '@/features/leaderboard/service';
-import * as repo from '@/features/leaderboard/repository';
+import { describe, test, expect, mock, beforeEach } from 'bun:test';
 import { Score } from '@/features/stats';
 import type { Game, User } from '@/db/schema';
 
-vi.mock('@/features/leaderboard/repository', () => ({
-  findUsersByServer: vi.fn(),
-  findGamesByServerAndPeriod: vi.fn(),
+// Create mocks
+const mockFindUsersByServer = mock(() => Promise.resolve([]));
+const mockFindGamesByServerAndPeriod = mock(() => Promise.resolve([]));
+
+// Mock module before importing the service
+mock.module('@/features/leaderboard/repository', () => ({
+  findUsersByServer: mockFindUsersByServer,
+  findGamesByServerAndPeriod: mockFindGamesByServerAndPeriod,
 }));
 
-const mockFindUsersByServer = repo.findUsersByServer as Mock;
-const mockFindGamesByServerAndPeriod = repo.findGamesByServerAndPeriod as Mock;
+// Import after mocking
+const { getLeaderboard, LeaderboardPeriod } = await import('@/features/leaderboard/service');
 
 // Test constants
 const TEST_SERVER_ID = 1;
@@ -108,11 +111,12 @@ const EXPECTED = {
 
 describe('Leaderboard', () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    mockFindUsersByServer.mockClear();
+    mockFindGamesByServerAndPeriod.mockClear();
   });
 
   describe('Given 5 users with various stats', () => {
-    it('When leaderboard generated, Then entries include userId for chart data', async () => {
+    test('When leaderboard generated, Then entries include userId for chart data', async () => {
       mockFindUsersByServer.mockResolvedValue(USERS);
       mockFindGamesByServerAndPeriod.mockResolvedValue(
         createGames(GAME_DATA.FIVE_USERS_VARIOUS_STATS)
@@ -131,7 +135,7 @@ describe('Leaderboard', () => {
       expect(leaderboard.find((e) => e.discordId === 'user3')?.userId).toBe(3);
     });
 
-    it('When leaderboard generated, Then ranked by ELO with ties handled', async () => {
+    test('When leaderboard generated, Then ranked by ELO with ties handled', async () => {
       mockFindUsersByServer.mockResolvedValue(USERS);
       mockFindGamesByServerAndPeriod.mockResolvedValue(
         createGames(GAME_DATA.FIVE_USERS_VARIOUS_STATS)
@@ -157,7 +161,7 @@ describe('Leaderboard', () => {
   });
 
   describe('Given period filter (weekly)', () => {
-    it('When leaderboard generated, Then only includes games from that period', async () => {
+    test('When leaderboard generated, Then only includes games from that period', async () => {
       mockFindUsersByServer.mockResolvedValue(USERS.slice(0, 2));
       mockFindGamesByServerAndPeriod.mockResolvedValue(
         createGames(GAME_DATA.USER_WITH_NO_GAMES_IN_PERIOD)
@@ -174,7 +178,7 @@ describe('Leaderboard', () => {
   });
 
   describe('Given user with no games in period', () => {
-    it('When leaderboard generated, Then user is excluded', async () => {
+    test('When leaderboard generated, Then user is excluded', async () => {
       mockFindUsersByServer.mockResolvedValue(USERS.slice(0, 3));
       mockFindGamesByServerAndPeriod.mockResolvedValue(
         createGames(GAME_DATA.USER_WITH_NO_GAMES_IN_PERIOD)
@@ -188,7 +192,7 @@ describe('Leaderboard', () => {
   });
 
   describe('Given no users have played', () => {
-    it('When leaderboard generated, Then returns empty array', async () => {
+    test('When leaderboard generated, Then returns empty array', async () => {
       mockFindUsersByServer.mockResolvedValue(USERS);
       mockFindGamesByServerAndPeriod.mockResolvedValue([]);
 
@@ -199,7 +203,7 @@ describe('Leaderboard', () => {
   });
 
   describe('Given users with various streaks', () => {
-    it('When leaderboard generated, Then includes current and max streak', async () => {
+    test('When leaderboard generated, Then includes current and max streak', async () => {
       mockFindUsersByServer.mockResolvedValue(USERS.slice(0, 4));
       mockFindGamesByServerAndPeriod.mockResolvedValue(
         createGames(GAME_DATA.STREAK_DATA)
@@ -217,7 +221,7 @@ describe('Leaderboard', () => {
   });
 
   describe('Given players with missed wordles', () => {
-    it('When player has no gaps, Then average unchanged', async () => {
+    test('When player has no gaps, Then average unchanged', async () => {
       // Player played all consecutive wordles 1000, 1001, 1002
       mockFindUsersByServer.mockResolvedValue([USERS[0]!]);
       mockFindGamesByServerAndPeriod.mockResolvedValue(
@@ -232,7 +236,7 @@ describe('Leaderboard', () => {
       expect(leaderboard[0]!.average).toBeCloseTo(3.33, 2);
     });
 
-    it('When player skips a wordle, Then gap counts as 7 in average', async () => {
+    test('When player skips a wordle, Then gap counts as 7 in average', async () => {
       // Player played 1000, skipped 1001, played 1002
       mockFindUsersByServer.mockResolvedValue([USERS[0]!]);
       mockFindGamesByServerAndPeriod.mockResolvedValue(
@@ -247,7 +251,7 @@ describe('Leaderboard', () => {
       expect(leaderboard[0]!.average).toBeCloseTo(4.33, 2);
     });
 
-    it('When player skips multiple wordles, Then all gaps count as 7', async () => {
+    test('When player skips multiple wordles, Then all gaps count as 7', async () => {
       // Player played 1000, skipped 1001, 1002, 1003, played 1004
       mockFindUsersByServer.mockResolvedValue([USERS[0]!]);
       mockFindGamesByServerAndPeriod.mockResolvedValue(
@@ -262,7 +266,7 @@ describe('Leaderboard', () => {
       expect(leaderboard[0]!.average).toBeCloseTo(5.4, 2);
     });
 
-    it('When multiple players have different gap patterns, Then each calculated correctly', async () => {
+    test('When multiple players have different gap patterns, Then each calculated correctly', async () => {
       // Player 1: played all (1000, 1001, 1002) - no gaps
       // Player 2: skipped 1001 (played 1000, 1002) - one gap
       mockFindUsersByServer.mockResolvedValue([USERS[0]!, USERS[1]!]);
@@ -284,7 +288,7 @@ describe('Leaderboard', () => {
       expect(user2.average).toBeCloseTo(4.33, 2);
     });
 
-    it('When player misses wordle at end of range (another player has higher wordle), Then end gap counts', async () => {
+    test('When player misses wordle at end of range (another player has higher wordle), Then end gap counts', async () => {
       // Player 1: played 1000, 1001, 1002
       // Player 2: played 1000 only (missed 1001, 1002)
       mockFindUsersByServer.mockResolvedValue([USERS[0]!, USERS[1]!]);

@@ -97,10 +97,15 @@ function getEndOfDay(date: Date): Date {
 }
 
 function getYesterday(date: Date): { start: Date; end: Date } {
-  const yesterday = new Date(date.getTime() - 86400000);
+  // Games from "yesterday" can have playedAt spanning 2 days due to parser backdating:
+  // - Shared on referenceDate-1 (yesterday): playedAt = referenceDate-2
+  // - Shared on referenceDate (today before summary): playedAt = referenceDate-1
+  // Use a 2-day range to capture both scenarios
+  const twoDaysAgo = new Date(date.getTime() - 2 * 86400000);
+  const oneDayAgo = new Date(date.getTime() - 86400000);
   return {
-    start: getStartOfDay(yesterday),
-    end: getEndOfDay(yesterday),
+    start: getStartOfDay(twoDaysAgo),
+    end: getEndOfDay(oneDayAgo),
   };
 }
 

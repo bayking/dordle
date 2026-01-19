@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import type { Guild, GuildMember, Collection, User } from 'discord.js';
+import { describe, test, expect, mock } from 'bun:test';
+import type { Guild } from 'discord.js';
 
 // Test constants
 const DISCORD_IDS = {
@@ -22,11 +22,12 @@ const USERNAMES = {
 
 describe('User Resolution', () => {
   describe('Given a Discord ID without username', () => {
-    it('When resolved, Then fetches username from Discord API', async () => {
+    test('When resolved, Then fetches username from Discord API', async () => {
       const mockUser = { id: DISCORD_IDS.PJONG, username: USERNAMES.PJONG };
+      const mockFetch = mock(() => Promise.resolve({ user: mockUser }));
       const mockGuild = {
         members: {
-          fetch: vi.fn().mockResolvedValue({ user: mockUser }),
+          fetch: mockFetch,
         },
       } as unknown as Guild;
 
@@ -39,7 +40,7 @@ describe('User Resolution', () => {
   });
 
   describe('Given a username without Discord ID', () => {
-    it('When resolved and member found, Then returns Discord ID', async () => {
+    test('When resolved and member found, Then returns Discord ID', async () => {
       const mockMember = {
         id: DISCORD_IDS.RUNAR,
         user: { id: DISCORD_IDS.RUNAR, username: USERNAMES.RUNAR },
@@ -47,9 +48,10 @@ describe('User Resolution', () => {
       const mockCollection = new Map([[DISCORD_IDS.RUNAR, mockMember]]);
       (mockCollection as any).first = () => mockMember;
 
+      const mockFetch = mock(() => Promise.resolve(mockCollection));
       const mockGuild = {
         members: {
-          fetch: vi.fn().mockResolvedValue(mockCollection),
+          fetch: mockFetch,
         },
       } as unknown as Guild;
 
@@ -60,13 +62,14 @@ describe('User Resolution', () => {
       expect(result.username).toBe(USERNAMES.RUNAR);
     });
 
-    it('When resolved and member not found, Then returns wordle-prefixed ID', async () => {
+    test('When resolved and member not found, Then returns wordle-prefixed ID', async () => {
       const mockCollection = new Map();
       (mockCollection as any).first = () => undefined;
 
+      const mockFetch = mock(() => Promise.resolve(mockCollection));
       const mockGuild = {
         members: {
-          fetch: vi.fn().mockResolvedValue(mockCollection),
+          fetch: mockFetch,
         },
       } as unknown as Guild;
 
@@ -79,10 +82,11 @@ describe('User Resolution', () => {
   });
 
   describe('Given both Discord ID and username', () => {
-    it('When resolved, Then returns both without API call', async () => {
+    test('When resolved, Then returns both without API call', async () => {
+      const mockFetch = mock(() => Promise.resolve({}));
       const mockGuild = {
         members: {
-          fetch: vi.fn(),
+          fetch: mockFetch,
         },
       } as unknown as Guild;
 
@@ -94,7 +98,7 @@ describe('User Resolution', () => {
 
       expect(result.discordId).toBe(DISCORD_IDS.PJONG);
       expect(result.username).toBe(USERNAMES.PJONG);
-      expect(mockGuild.members.fetch).not.toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 });

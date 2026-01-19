@@ -1,34 +1,30 @@
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import {
-  generateDailySummary,
-  generateWeeklySummary,
-  generateMonthlySummary,
-  SummaryPeriod,
-  type DailySummary,
-  type WeeklySummary,
-  type MonthlySummary,
-} from '@/features/summaries/service';
-import * as repo from '@/features/summaries/repository';
-import * as eloRepo from '@/features/elo';
+import { describe, test, expect, mock, beforeEach } from 'bun:test';
 import { Score } from '@/features/stats';
 import type { Game, User } from '@/db/schema';
 
-vi.mock('@/features/summaries/repository', () => ({
-  findGamesByServerAndDateRange: vi.fn(),
-  findUsersByServer: vi.fn(),
-  getServerGroupStreak: vi.fn(),
+// Create mocks
+const mockFindGamesByServerAndDateRange = mock(() => Promise.resolve([]));
+const mockFindUsersByServer = mock(() => Promise.resolve([]));
+const mockGetServerGroupStreak = mock(() => Promise.resolve(0));
+const mockGetEloChangesForWordle = mock(() => Promise.resolve([]));
+const mockGetEloHistoryForDateRange = mock(() => Promise.resolve([]));
+
+// Mock modules before importing the service
+mock.module('@/features/summaries/repository', () => ({
+  findGamesByServerAndDateRange: mockFindGamesByServerAndDateRange,
+  findUsersByServer: mockFindUsersByServer,
+  getServerGroupStreak: mockGetServerGroupStreak,
 }));
 
-vi.mock('@/features/elo', () => ({
-  getEloChangesForWordle: vi.fn(),
-  getEloHistoryForDateRange: vi.fn(),
+mock.module('@/features/elo', () => ({
+  getEloChangesForWordle: mockGetEloChangesForWordle,
+  getEloHistoryForDateRange: mockGetEloHistoryForDateRange,
+  PROVISIONAL_GAMES: 10,
 }));
 
-const mockFindGamesByServerAndDateRange = repo.findGamesByServerAndDateRange as Mock;
-const mockFindUsersByServer = repo.findUsersByServer as Mock;
-const mockGetServerGroupStreak = repo.getServerGroupStreak as Mock;
-const mockGetEloChangesForWordle = eloRepo.getEloChangesForWordle as Mock;
-const mockGetEloHistoryForDateRange = eloRepo.getEloHistoryForDateRange as Mock;
+// Import after mocking
+const { generateDailySummary, generateWeeklySummary, generateMonthlySummary } =
+  await import('@/features/summaries/service');
 
 // Test constants
 const TEST_SERVER_ID = 1;
@@ -86,14 +82,19 @@ function createGame(
 
 describe('Summary Generation', () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    mockFindGamesByServerAndDateRange.mockClear();
+    mockFindUsersByServer.mockClear();
+    mockGetServerGroupStreak.mockClear();
+    mockGetEloChangesForWordle.mockClear();
+    mockGetEloHistoryForDateRange.mockClear();
+
     // Default ELO mocks - return empty arrays
     mockGetEloChangesForWordle.mockResolvedValue([]);
     mockGetEloHistoryForDateRange.mockResolvedValue([]);
   });
 
   describe('Daily Summary', () => {
-    it('Given yesterday games, When daily summary generated, Then includes winner and all scores', async () => {
+    test('Given yesterday games, When daily summary generated, Then includes winner and all scores', async () => {
       const games = [
         createGame(USERS.ALICE.id, Score.Three, 1, 1000),
         createGame(USERS.BOB.id, Score.Four, 1, 1000),
@@ -115,7 +116,7 @@ describe('Summary Generation', () => {
       expect(summary.scores).toHaveLength(3);
     });
 
-    it('Given tied scores, When daily summary generated, Then all winners included', async () => {
+    test('Given tied scores, When daily summary generated, Then all winners included', async () => {
       const games = [
         createGame(USERS.ALICE.id, Score.Three, 1, 1000),
         createGame(USERS.BOB.id, Score.Three, 1, 1000),
@@ -132,7 +133,7 @@ describe('Summary Generation', () => {
       expect(summary.winners.map((w) => w.userId)).toContain(USERS.BOB.id);
     });
 
-    it('Given no games yesterday, When daily summary generated, Then returns empty summary', async () => {
+    test('Given no games yesterday, When daily summary generated, Then returns empty summary', async () => {
       mockFindGamesByServerAndDateRange.mockResolvedValue([]);
       mockFindUsersByServer.mockResolvedValue(Object.values(USERS));
       mockGetServerGroupStreak.mockResolvedValue(0);
@@ -144,7 +145,7 @@ describe('Summary Generation', () => {
       expect(summary.scores).toHaveLength(0);
     });
 
-    it('Given game with fail, When daily summary generated, Then fail excluded from winner consideration', async () => {
+    test('Given game with fail, When daily summary generated, Then fail excluded from winner consideration', async () => {
       const games = [
         createGame(USERS.ALICE.id, Score.Fail, 1, 1000),
         createGame(USERS.BOB.id, Score.Five, 1, 1000),
@@ -160,20 +161,21 @@ describe('Summary Generation', () => {
   });
 
   describe('Weekly Summary', () => {
-    it('Given reference date, When weekly summary generated, Then queries 7 days ending on reference date', async () => {
+    test('Given reference date, When weekly summary generated, Then queries 7 days ending on reference date', async () => {
       mockFindGamesByServerAndDateRange.mockResolvedValue([]);
       mockFindUsersByServer.mockResolvedValue([]);
 
       await generateWeeklySummary(TEST_SERVER_ID, TEST_DATE);
 
-      const [, start, end] = mockFindGamesByServerAndDateRange.mock.calls[0];
+      const calls = mockFindGamesByServerAndDateRange.mock.calls;
+      const [, start, end] = calls[0] as [number, Date, Date];
       // End should be reference date (Jan 15), not yesterday
       expect(end.toISOString()).toContain('2024-01-15');
       // Start should be 6 days before (Jan 9)
       expect(start.toISOString()).toContain('2024-01-09');
     });
 
-    it('Given week of games, When weekly summary generated, Then includes rankings', async () => {
+    test('Given week of games, When weekly summary generated, Then includes rankings', async () => {
       const games = [
         // Alice: avg 3.0
         createGame(USERS.ALICE.id, Score.Three, 1, 1006),
@@ -200,7 +202,7 @@ describe('Summary Generation', () => {
       expect(summary.rankings[2]?.userId).toBe(USERS.CHARLIE.id);
     });
 
-    it('Given week of games, When weekly summary generated, Then calculates total games', async () => {
+    test('Given week of games, When weekly summary generated, Then calculates total games', async () => {
       const games = [
         createGame(USERS.ALICE.id, Score.Three, 1, 1006),
         createGame(USERS.ALICE.id, Score.Four, 2, 1005),
@@ -215,7 +217,7 @@ describe('Summary Generation', () => {
       expect(summary.uniquePlayers).toBe(2);
     });
 
-    it('Given no games in week, When weekly summary generated, Then returns empty rankings', async () => {
+    test('Given no games in week, When weekly summary generated, Then returns empty rankings', async () => {
       mockFindGamesByServerAndDateRange.mockResolvedValue([]);
       mockFindUsersByServer.mockResolvedValue(Object.values(USERS));
 
@@ -225,7 +227,7 @@ describe('Summary Generation', () => {
       expect(summary.totalGames).toBe(0);
     });
 
-    it('Given week of games with streaks, When weekly summary generated, Then includes streak data', async () => {
+    test('Given week of games with streaks, When weekly summary generated, Then includes streak data', async () => {
       const games = [
         // Alice: 3 consecutive wins = currentStreak 3, maxStreak 3
         createGame(USERS.ALICE.id, Score.Three, 1, 1006),
@@ -253,20 +255,21 @@ describe('Summary Generation', () => {
   });
 
   describe('Monthly Summary', () => {
-    it('Given reference date, When monthly summary generated, Then queries 1 month ending on reference date', async () => {
+    test('Given reference date, When monthly summary generated, Then queries 1 month ending on reference date', async () => {
       mockFindGamesByServerAndDateRange.mockResolvedValue([]);
       mockFindUsersByServer.mockResolvedValue([]);
 
       await generateMonthlySummary(TEST_SERVER_ID, TEST_DATE);
 
-      const [, start, end] = mockFindGamesByServerAndDateRange.mock.calls[0];
+      const calls = mockFindGamesByServerAndDateRange.mock.calls;
+      const [, start, end] = calls[0] as [number, Date, Date];
       // End should be reference date (Jan 15), not yesterday
       expect(end.toISOString()).toContain('2024-01-15');
       // Start should be 1 month before (Dec 15)
       expect(start.toISOString()).toContain('2023-12-15');
     });
 
-    it('Given month of games, When monthly summary generated, Then includes champion', async () => {
+    test('Given month of games, When monthly summary generated, Then includes champion', async () => {
       const games = [
         // Alice plays more with better average
         createGame(USERS.ALICE.id, Score.Three, 1, 1030),
@@ -287,7 +290,7 @@ describe('Summary Generation', () => {
       expect(summary.champion?.average).toBe(3);
     });
 
-    it('Given month of games, When monthly summary generated, Then includes stats', async () => {
+    test('Given month of games, When monthly summary generated, Then includes stats', async () => {
       const games = [
         createGame(USERS.ALICE.id, Score.One, 1, 1030),
         createGame(USERS.ALICE.id, Score.Six, 5, 1026),

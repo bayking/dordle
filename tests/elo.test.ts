@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, test, expect } from 'bun:test';
 import {
   calculateDailyEloChanges,
   calculateAbsentPlayerEloChanges,
@@ -48,52 +48,52 @@ function createPlayer(
 }
 
 describe('ELO Constants', () => {
-  it('DEFAULT_ELO is 1500', () => {
+  test('DEFAULT_ELO is 1500', () => {
     expect(DEFAULT_ELO).toBe(1500);
   });
 
-  it('K-factors are correctly tiered', () => {
+  test('K-factors are correctly tiered', () => {
     expect(K_FACTOR_PROVISIONAL).toBe(80);
     expect(K_FACTOR_ESTABLISHING).toBe(64);
     expect(K_FACTOR_ESTABLISHED).toBe(48);
   });
 
-  it('Game thresholds are defined', () => {
+  test('Game thresholds are defined', () => {
     expect(PROVISIONAL_GAMES).toBe(10);
     expect(ESTABLISHING_GAMES).toBe(30);
   });
 
-  it('MIN_PLAYERS_FOR_ELO is 2', () => {
+  test('MIN_PLAYERS_FOR_ELO is 2', () => {
     expect(MIN_PLAYERS_FOR_ELO).toBe(2);
   });
 
-  it('FAIL_EFFECTIVE_SCORE is 9', () => {
+  test('FAIL_EFFECTIVE_SCORE is 9', () => {
     expect(FAIL_EFFECTIVE_SCORE).toBe(9);
   });
 
-  it('FAIL_PENALTY is 3', () => {
+  test('FAIL_PENALTY is 3', () => {
     expect(FAIL_PENALTY).toBe(3);
   });
 
-  it('DAILY_WINNER_BONUS is 10', () => {
+  test('DAILY_WINNER_BONUS is 10', () => {
     expect(DAILY_WINNER_BONUS).toBe(10);
   });
 });
 
 describe('getKFactor', () => {
-  it('Returns provisional K-factor for new players (0-10 games)', () => {
+  test('Returns provisional K-factor for new players (0-10 games)', () => {
     expect(getKFactor(0)).toBe(K_FACTOR_PROVISIONAL);
     expect(getKFactor(5)).toBe(K_FACTOR_PROVISIONAL);
     expect(getKFactor(10)).toBe(K_FACTOR_PROVISIONAL);
   });
 
-  it('Returns establishing K-factor for mid players (11-30 games)', () => {
+  test('Returns establishing K-factor for mid players (11-30 games)', () => {
     expect(getKFactor(11)).toBe(K_FACTOR_ESTABLISHING);
     expect(getKFactor(20)).toBe(K_FACTOR_ESTABLISHING);
     expect(getKFactor(30)).toBe(K_FACTOR_ESTABLISHING);
   });
 
-  it('Returns established K-factor for veteran players (31+ games)', () => {
+  test('Returns established K-factor for veteran players (31+ games)', () => {
     expect(getKFactor(31)).toBe(K_FACTOR_ESTABLISHED);
     expect(getKFactor(100)).toBe(K_FACTOR_ESTABLISHED);
     expect(getKFactor(500)).toBe(K_FACTOR_ESTABLISHED);
@@ -102,14 +102,14 @@ describe('getKFactor', () => {
 
 describe('calculateDailyEloChanges', () => {
   describe('Given no players', () => {
-    it('Returns empty array', () => {
+    test('Returns empty array', () => {
       const updates = calculateDailyEloChanges([]);
       expect(updates).toHaveLength(0);
     });
   });
 
   describe('Given single player', () => {
-    it('Returns no change (insufficient competition)', () => {
+    test('Returns no change (insufficient competition)', () => {
       const players: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.EXCELLENT),
       ];
@@ -123,7 +123,7 @@ describe('calculateDailyEloChanges', () => {
   });
 
   describe('Given players with mixed scores', () => {
-    it('Better-than-average players gain ELO, worse lose ELO', () => {
+    test('Better-than-average players gain ELO, worse lose ELO', () => {
       const players: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.EXCELLENT), // 2
         createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE), // 4
@@ -154,7 +154,7 @@ describe('calculateDailyEloChanges', () => {
   });
 
   describe('Given player scores exactly average', () => {
-    it('Minimal ELO change when all same ELO', () => {
+    test('Minimal ELO change when all same ELO', () => {
       const players: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.GOOD), // 3
         createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE), // 4
@@ -171,7 +171,7 @@ describe('calculateDailyEloChanges', () => {
   });
 
   describe('Given player fails (score 7)', () => {
-    it('Fail is treated as score 9, always loses ELO', () => {
+    test('Fail is treated as score 9, always loses ELO', () => {
       const players: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.AVERAGE), // 4
         createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.FAIL), // 7 → 9
@@ -186,7 +186,7 @@ describe('calculateDailyEloChanges', () => {
       expect(bobUpdate.newElo).toBeLessThan(bobUpdate.oldElo);
     });
 
-    it('All failures still result in fail penalty applied', () => {
+    test('All failures still result in fail penalty applied', () => {
       const players: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.FAIL),
         createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.FAIL),
@@ -204,7 +204,7 @@ describe('calculateDailyEloChanges', () => {
   });
 
   describe('Given new player vs high ELO players', () => {
-    it('Underdog gains more ELO when outperforming', () => {
+    test('Underdog gains more ELO when outperforming', () => {
       const highElo = 1700;
       const players: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.EXCELLENT), // 1500, scores 2
@@ -219,7 +219,7 @@ describe('calculateDailyEloChanges', () => {
       expect(aliceUpdate.change).toBeGreaterThan(10);
     });
 
-    it('Favorite loses more ELO when underperforming', () => {
+    test('Favorite loses more ELO when underperforming', () => {
       const highElo = 1700;
       const players: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.EXCELLENT), // Low ELO, scores well
@@ -235,7 +235,7 @@ describe('calculateDailyEloChanges', () => {
   });
 
   describe('Given expected score capping', () => {
-    it('High ELO player can still gain ELO when winning (cap at 0.9)', () => {
+    test('High ELO player can still gain ELO when winning (cap at 0.9)', () => {
       const veryHighElo = 2000;
       const lowElo = 1200;
       const players: PlayerGame[] = [
@@ -250,7 +250,7 @@ describe('calculateDailyEloChanges', () => {
       expect(aliceUpdate.change).toBeGreaterThan(0);
     });
 
-    it('Low ELO player does not lose catastrophically (cap at 0.1)', () => {
+    test('Low ELO player does not lose catastrophically (cap at 0.1)', () => {
       const veryHighElo = 2000;
       const lowElo = 1200;
       const players: PlayerGame[] = [
@@ -267,7 +267,7 @@ describe('calculateDailyEloChanges', () => {
   });
 
   describe('Given tied scores', () => {
-    it('ELO changes based on relative rating', () => {
+    test('ELO changes based on relative rating', () => {
       const players: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, 1400, SCORES.AVERAGE), // Lower ELO
         createPlayer(TEST_USER_IDS.BOB, 1600, SCORES.AVERAGE), // Higher ELO
@@ -283,7 +283,7 @@ describe('calculateDailyEloChanges', () => {
   });
 
   describe('Given K-factor by games played', () => {
-    it('Provisional player has larger ELO swings', () => {
+    test('Provisional player has larger ELO swings', () => {
       const players: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.EXCELLENT, 5), // Provisional
         createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.POOR, 5), // Provisional
@@ -296,7 +296,7 @@ describe('calculateDailyEloChanges', () => {
       expect(Math.abs(aliceUpdate.change)).toBeGreaterThan(15);
     });
 
-    it('Established player has smaller ELO swings', () => {
+    test('Established player has smaller ELO swings', () => {
       const players: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.EXCELLENT, 100), // Established
         createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.POOR, 100), // Established
@@ -311,7 +311,7 @@ describe('calculateDailyEloChanges', () => {
   });
 
   describe('Given EloUpdate structure', () => {
-    it('Returns correct structure with all fields', () => {
+    test('Returns correct structure with all fields', () => {
       const players: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.GOOD),
         createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE),
@@ -333,7 +333,7 @@ describe('calculateDailyEloChanges', () => {
       }
     });
 
-    it('ELO values are integers', () => {
+    test('ELO values are integers', () => {
       const players: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.GOOD),
         createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.BELOW_AVERAGE),
@@ -349,7 +349,7 @@ describe('calculateDailyEloChanges', () => {
   });
 
   describe('Given daily winner bonus', () => {
-    it('Sole winner gets +10 bonus ELO', () => {
+    test('Sole winner gets +10 bonus ELO', () => {
       const players: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.EXCELLENT), // 2 - winner
         createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE), // 4
@@ -365,7 +365,7 @@ describe('calculateDailyEloChanges', () => {
       expect(aliceUpdate.change).toBeGreaterThan(bobUpdate.change + DAILY_WINNER_BONUS - 5);
     });
 
-    it('Multiple winners with same best score all get bonus', () => {
+    test('Multiple winners with same best score all get bonus', () => {
       const players: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.GOOD), // 3 - tied winner
         createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.GOOD), // 3 - tied winner
@@ -383,7 +383,7 @@ describe('calculateDailyEloChanges', () => {
       expect(charlieUpdate.change).toBeLessThan(aliceUpdate.change - DAILY_WINNER_BONUS / 2);
     });
 
-    it('Winner bonus applies even with only 2 players', () => {
+    test('Winner bonus applies even with only 2 players', () => {
       const players: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.GOOD), // 3 - winner
         createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.POOR), // 6
@@ -405,7 +405,7 @@ function createAbsentPlayer(userId: number, elo: number, gamesPlayed = 50): Abse
 
 describe('calculateAbsentPlayerEloChanges', () => {
   describe('Given no participants', () => {
-    it('Returns empty array (no competition)', () => {
+    test('Returns empty array (no competition)', () => {
       const participants: PlayerGame[] = [];
       const absentPlayers: AbsentPlayer[] = [
         createAbsentPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO),
@@ -418,7 +418,7 @@ describe('calculateAbsentPlayerEloChanges', () => {
   });
 
   describe('Given single participant', () => {
-    it('Returns empty array (need MIN_PLAYERS_FOR_ELO)', () => {
+    test('Returns empty array (need MIN_PLAYERS_FOR_ELO)', () => {
       const participants: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.AVERAGE),
       ];
@@ -433,7 +433,7 @@ describe('calculateAbsentPlayerEloChanges', () => {
   });
 
   describe('Given no absent players', () => {
-    it('Returns empty array', () => {
+    test('Returns empty array', () => {
       const participants: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.GOOD),
         createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE),
@@ -447,7 +447,7 @@ describe('calculateAbsentPlayerEloChanges', () => {
   });
 
   describe('Given absent player misses a day', () => {
-    it('Absent player loses ELO', () => {
+    test('Absent player loses ELO', () => {
       const participants: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.GOOD),
         createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE),
@@ -464,7 +464,7 @@ describe('calculateAbsentPlayerEloChanges', () => {
       expect(updates[0]!.newElo).toBeLessThan(updates[0]!.oldElo);
     });
 
-    it('Absent player is treated as having lost to all participants', () => {
+    test('Absent player is treated as having lost to all participants', () => {
       const participants: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.AVERAGE),
         createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE),
@@ -482,7 +482,7 @@ describe('calculateAbsentPlayerEloChanges', () => {
   });
 
   describe('Given more participants', () => {
-    it('Absent player loses more ELO with more participants', () => {
+    test('Absent player loses more ELO with more participants', () => {
       // 2 participants
       const participants2: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.AVERAGE),
@@ -507,7 +507,7 @@ describe('calculateAbsentPlayerEloChanges', () => {
   });
 
   describe('Given absent player with high ELO', () => {
-    it('High ELO absent player loses more than low ELO absent player', () => {
+    test('High ELO absent player loses more than low ELO absent player', () => {
       const participants: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.AVERAGE),
         createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE),
@@ -525,7 +525,7 @@ describe('calculateAbsentPlayerEloChanges', () => {
   });
 
   describe('Given multiple absent players', () => {
-    it('Returns updates for all absent players', () => {
+    test('Returns updates for all absent players', () => {
       const participants: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.AVERAGE),
         createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE),
@@ -543,7 +543,7 @@ describe('calculateAbsentPlayerEloChanges', () => {
   });
 
   describe('Given K-factor by games played', () => {
-    it('Provisional absent player loses more ELO', () => {
+    test('Provisional absent player loses more ELO', () => {
       const participants: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.AVERAGE),
         createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE),
@@ -567,14 +567,14 @@ describe('calculateAbsentPlayerEloChanges', () => {
   });
 
   describe('Given ABSENT_EFFECTIVE_SCORE constant', () => {
-    it('Is greater than FAIL_EFFECTIVE_SCORE', () => {
+    test('Is greater than FAIL_EFFECTIVE_SCORE', () => {
       // Absent should be worse than failing
       expect(ABSENT_EFFECTIVE_SCORE).toBeGreaterThan(FAIL_EFFECTIVE_SCORE);
     });
   });
 
   describe('Given EloUpdate structure', () => {
-    it('Returns correct structure with all fields', () => {
+    test('Returns correct structure with all fields', () => {
       const participants: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.AVERAGE),
         createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE),
@@ -598,7 +598,7 @@ describe('calculateAbsentPlayerEloChanges', () => {
       }
     });
 
-    it('ELO values are integers', () => {
+    test('ELO values are integers', () => {
       const participants: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.AVERAGE),
         createPlayer(TEST_USER_IDS.BOB, DEFAULT_ELO, SCORES.AVERAGE),

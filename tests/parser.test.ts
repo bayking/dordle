@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, test, expect } from 'bun:test';
 import { parseWordleMessage } from '@/features/parser/patterns';
 
 // Test constants
@@ -12,7 +12,7 @@ const DISCORD_IDS = {
 
 describe('Wordle Message Parser', () => {
   describe('Given a Wordle app message with Discord mentions', () => {
-    it('When parsed, Then extracts all user Discord IDs correctly', () => {
+    test('When parsed, Then extracts all user Discord IDs correctly', () => {
       const message = `Your group is on a 5 day streak! 🔥 Here are yesterday's results:
 
 🏆 3/6: <@${DISCORD_IDS.ALICE}> <@${DISCORD_IDS.BOB}>
@@ -31,7 +31,7 @@ describe('Wordle Message Parser', () => {
       expect(result!.scores).toContainEqual({ discordId: DISCORD_IDS.EVE, score: 5 });
     });
 
-    it('When message has nickname mentions, Then extracts IDs correctly', () => {
+    test('When message has nickname mentions, Then extracts IDs correctly', () => {
       const message = `Your group is on a 2 day streak! 🔥 Here are yesterday's results:
 
 🏆 3/6: <@!${DISCORD_IDS.ALICE}>
@@ -47,7 +47,7 @@ describe('Wordle Message Parser', () => {
   });
 
   describe('Given a Wordle app message with plain usernames (fallback)', () => {
-    it('When parsed, Then extracts usernames correctly', () => {
+    test('When parsed, Then extracts usernames correctly', () => {
       const message = `Your group is on a 5 day streak! 🔥 Here are yesterday's results:
 
 🏆 3/6: @Alice @Bob
@@ -68,7 +68,7 @@ describe('Wordle Message Parser', () => {
   });
 
   describe('Given a message with X/6 (fail)', () => {
-    it('When parsed, Then score is recorded as 7', () => {
+    test('When parsed, Then score is recorded as 7', () => {
       const message = `Your group is on a 4 day streak! 🔥 Here are yesterday's results:
 
 🏆 3/6: @Alice @Bob
@@ -85,7 +85,7 @@ X/6: @Eve`;
   });
 
   describe('Given a message with crown emoji', () => {
-    it('When trophy emoji 🏆, Then identifies the winners', () => {
+    test('When trophy emoji 🏆, Then identifies the winners', () => {
       const message = `Your group is on a 3 day streak! 🔥 Here are yesterday's results:
 
 🏆 4/6: @Alice
@@ -98,7 +98,7 @@ X/6: @Eve`;
       expect(result!.winners).toEqual(['Alice']);
     });
 
-    it('When crown emoji 👑, Then identifies the winners', () => {
+    test('When crown emoji 👑, Then identifies the winners', () => {
       const message = `Your group is on a 3 day streak! 🔥 Here are yesterday's results:
 
 👑 4/6: @Alice
@@ -111,7 +111,7 @@ X/6: @Eve`;
       expect(result!.winners).toEqual(['Alice']);
     });
 
-    it('When multiple winners, Then identifies all winners', () => {
+    test('When multiple winners, Then identifies all winners', () => {
       const message = `Your group is on a 5 day streak! 🔥 Here are yesterday's results:
 
 🏆 3/6: @Alice @Bob
@@ -126,7 +126,7 @@ X/6: @Eve`;
   });
 
   describe('Given mixed Discord mentions and plain usernames', () => {
-    it('When same line has both formats, Then extracts both separately', () => {
+    test('When same line has both formats, Then extracts both separately', () => {
       const message = `Your group is on a 2 day streak! 🔥 Here are yesterday's results:
 
 👑 3/6: <@${DISCORD_IDS.ALICE}>
@@ -141,7 +141,7 @@ X/6: @Eve`;
       expect(result!.scores).toContainEqual({ discordId: DISCORD_IDS.BOB, score: 5 });
     });
 
-    it('When only plain usernames on some lines, Then extracts them', () => {
+    test('When only plain usernames on some lines, Then extracts them', () => {
       const message = `Your group is on a 3 day streak! 🔥 Here are yesterday's results:
 
 👑 4/6: @runar12
@@ -159,24 +159,24 @@ X/6: @Eve`;
   });
 
   describe('Given a non-Wordle summary message', () => {
-    it('When checked, Then returns null (ignored)', () => {
+    test('When checked, Then returns null (ignored)', () => {
       const message = 'Hello everyone! How are you doing today?';
       expect(parseWordleMessage(message)).toBeNull();
     });
 
-    it('When "was playing" message, Then returns null (ignored)', () => {
+    test('When "was playing" message, Then returns null (ignored)', () => {
       const message = 'player1 was playing';
       expect(parseWordleMessage(message)).toBeNull();
     });
 
-    it('When "Play now!" only message, Then returns null (ignored)', () => {
+    test('When "Play now!" only message, Then returns null (ignored)', () => {
       const message = 'Play now!';
       expect(parseWordleMessage(message)).toBeNull();
     });
   });
 
   describe('Given a 1 day streak message', () => {
-    it('When parsed, Then extracts streak correctly', () => {
+    test('When parsed, Then extracts streak correctly', () => {
       const message = `Your group is on a 1 day streak! 🔥 Here are yesterday's results:
 
 🏆 3/6: @Alice
@@ -190,7 +190,7 @@ X/6: @Eve`;
   });
 
   describe('Given varied score formats', () => {
-    it('When parsed, Then handles all valid scores 1-6 and X', () => {
+    test('When parsed, Then handles all valid scores 1-6 and X', () => {
       const message = `Your group is on a 7 day streak! 🔥 Here are yesterday's results:
 
 🏆 1/6: @p1
@@ -216,7 +216,7 @@ X/6: @p7`;
   });
 
   describe('Given inline format', () => {
-    it('When scores are on single line, Then parses correctly', () => {
+    test('When scores are on single line, Then parses correctly', () => {
       const message = `Your group is on a 1 day streak! 🔥 Here are yesterday's results: 🏆 3/6: @Alice 4/6: @Bob`;
 
       const result = parseWordleMessage(message);

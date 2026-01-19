@@ -1,12 +1,15 @@
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { deleteServerStats } from '@/features/stats/repository';
-import { getDb } from '@/db';
+import { describe, test, expect, mock, beforeEach } from 'bun:test';
 
-vi.mock('@/db', () => ({
-  getDb: vi.fn(),
+// Create mock
+const mockGetDb = mock(() => ({}));
+
+// Mock module before importing the service
+mock.module('@/db', () => ({
+  getDb: mockGetDb,
 }));
 
-const mockGetDb = getDb as Mock;
+// Import after mocking
+const { deleteServerStats } = await import('@/features/stats/repository');
 
 // Test constants
 const TEST_SERVER_ID = 1;
@@ -19,17 +22,18 @@ const MOCK_DELETED = {
 
 describe('Delete Server Stats', () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    mockGetDb.mockClear();
   });
 
-  it('Given server with games and users, When deleted, Then returns correct counts', async () => {
-    const mockDelete = vi.fn().mockReturnValue({
-      where: vi.fn().mockReturnValue({
-        returning: vi.fn()
-          .mockResolvedValueOnce(MOCK_DELETED.THREE_GAMES)
-          .mockResolvedValueOnce(MOCK_DELETED.TWO_USERS),
-      }),
-    });
+  test('Given server with games and users, When deleted, Then returns correct counts', async () => {
+    const mockReturning = mock(() => Promise.resolve(MOCK_DELETED.THREE_GAMES));
+    const mockWhere = mock(() => ({ returning: mockReturning }));
+    const mockDelete = mock(() => ({ where: mockWhere }));
+
+    // Set up returning to return different values on subsequent calls
+    mockReturning
+      .mockResolvedValueOnce(MOCK_DELETED.THREE_GAMES)
+      .mockResolvedValueOnce(MOCK_DELETED.TWO_USERS);
 
     mockGetDb.mockReturnValue({
       delete: mockDelete,
@@ -42,12 +46,10 @@ describe('Delete Server Stats', () => {
     expect(mockDelete).toHaveBeenCalledTimes(2);
   });
 
-  it('Given empty server, When deleted, Then returns zero counts', async () => {
-    const mockDelete = vi.fn().mockReturnValue({
-      where: vi.fn().mockReturnValue({
-        returning: vi.fn().mockResolvedValue(MOCK_DELETED.EMPTY),
-      }),
-    });
+  test('Given empty server, When deleted, Then returns zero counts', async () => {
+    const mockReturning = mock(() => Promise.resolve(MOCK_DELETED.EMPTY));
+    const mockWhere = mock(() => ({ returning: mockReturning }));
+    const mockDelete = mock(() => ({ where: mockWhere }));
 
     mockGetDb.mockReturnValue({
       delete: mockDelete,
@@ -59,16 +61,14 @@ describe('Delete Server Stats', () => {
     expect(result.usersDeleted).toBe(0);
   });
 
-  it('Given server with only games, When deleted, Then deletes games before users', async () => {
-    const mockWhere = vi.fn().mockReturnValue({
-      returning: vi.fn()
-        .mockResolvedValueOnce(MOCK_DELETED.THREE_GAMES)
-        .mockResolvedValueOnce(MOCK_DELETED.EMPTY),
-    });
+  test('Given server with only games, When deleted, Then deletes games before users', async () => {
+    const mockReturning = mock(() => Promise.resolve(MOCK_DELETED.THREE_GAMES));
+    const mockWhere = mock(() => ({ returning: mockReturning }));
+    const mockDelete = mock(() => ({ where: mockWhere }));
 
-    const mockDelete = vi.fn().mockReturnValue({
-      where: mockWhere,
-    });
+    mockReturning
+      .mockResolvedValueOnce(MOCK_DELETED.THREE_GAMES)
+      .mockResolvedValueOnce(MOCK_DELETED.EMPTY);
 
     mockGetDb.mockReturnValue({
       delete: mockDelete,

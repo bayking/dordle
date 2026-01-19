@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, test, expect, mock, beforeEach } from 'bun:test';
 import { Score } from '@/features/stats';
 import type { DailySummary, WeeklySummary, MonthlySummary } from '@/features/summaries';
 
@@ -17,25 +17,27 @@ const USERNAMES = {
 
 const WORDLE_NUMBER = 1234;
 
+const mockUserFetch = mock((id: string) => {
+  const userMap: Record<string, { username: string }> = {
+    [DISCORD_IDS.ALICE]: { username: USERNAMES.ALICE },
+    [DISCORD_IDS.BOB]: { username: USERNAMES.BOB },
+    [DISCORD_IDS.CHARLIE]: { username: USERNAMES.CHARLIE },
+  };
+  return Promise.resolve(userMap[id] ?? { username: id });
+});
+
 const mockClient = {
   users: {
-    fetch: vi.fn().mockImplementation((id: string) => {
-      const userMap: Record<string, { username: string }> = {
-        [DISCORD_IDS.ALICE]: { username: USERNAMES.ALICE },
-        [DISCORD_IDS.BOB]: { username: USERNAMES.BOB },
-        [DISCORD_IDS.CHARLIE]: { username: USERNAMES.CHARLIE },
-      };
-      return Promise.resolve(userMap[id] ?? { username: id });
-    }),
+    fetch: mockUserFetch,
   },
 } as any;
 
 describe('Daily Summary Embed', () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    mockUserFetch.mockClear();
   });
 
-  it('Given daily summary with winner, When formatted, Then shows winner with score', async () => {
+  test('Given daily summary with winner, When formatted, Then shows winner with score', async () => {
     const summary: DailySummary = {
       wordleNumber: WORDLE_NUMBER,
       participants: 3,
@@ -61,7 +63,7 @@ describe('Daily Summary Embed', () => {
     expect(embed.data.footer?.text).toContain('1234');
   });
 
-  it('Given daily summary with no games, When formatted, Then shows no games message', async () => {
+  test('Given daily summary with no games, When formatted, Then shows no games message', async () => {
     const summary: DailySummary = {
       wordleNumber: null,
       participants: 0,
@@ -78,7 +80,7 @@ describe('Daily Summary Embed', () => {
     expect(embed.data.description).toContain('No games played');
   });
 
-  it('Given daily summary with multiple winners, When formatted, Then shows all winners', async () => {
+  test('Given daily summary with multiple winners, When formatted, Then shows all winners', async () => {
     const summary: DailySummary = {
       wordleNumber: WORDLE_NUMBER,
       participants: 2,
@@ -106,14 +108,14 @@ describe('Daily Summary Embed', () => {
 });
 
 describe('Weekly Summary Embed', () => {
-  it('Given weekly summary with rankings, When formatted, Then shows leaderboard with medals', async () => {
+  test('Given weekly summary with rankings, When formatted, Then shows leaderboard with medals', async () => {
     const summary: WeeklySummary = {
       totalGames: 15,
       uniquePlayers: 3,
       rankings: [
-        { userId: 1, discordId: DISCORD_IDS.ALICE, wordleUsername: USERNAMES.ALICE, gamesPlayed: 5, average: 3.2, rank: 1, currentStreak: 5, maxStreak: 5, elo: 1600, eloGamesPlayed: 20 },
-        { userId: 2, discordId: DISCORD_IDS.BOB, wordleUsername: USERNAMES.BOB, gamesPlayed: 5, average: 3.8, rank: 2, currentStreak: 3, maxStreak: 4, elo: 1550, eloGamesPlayed: 15 },
-        { userId: 3, discordId: DISCORD_IDS.CHARLIE, wordleUsername: USERNAMES.CHARLIE, gamesPlayed: 5, average: 4.2, rank: 3, currentStreak: 0, maxStreak: 2, elo: 1480, eloGamesPlayed: 12 },
+        { userId: 1, discordId: DISCORD_IDS.ALICE, wordleUsername: USERNAMES.ALICE, gamesPlayed: 5, missedDays: 0, average: 3.2, rank: 1, currentStreak: 5, maxStreak: 5, elo: 1600, eloGamesPlayed: 20 },
+        { userId: 2, discordId: DISCORD_IDS.BOB, wordleUsername: USERNAMES.BOB, gamesPlayed: 5, missedDays: 0, average: 3.8, rank: 2, currentStreak: 3, maxStreak: 4, elo: 1550, eloGamesPlayed: 15 },
+        { userId: 3, discordId: DISCORD_IDS.CHARLIE, wordleUsername: USERNAMES.CHARLIE, gamesPlayed: 5, missedDays: 0, average: 4.2, rank: 3, currentStreak: 0, maxStreak: 2, elo: 1480, eloGamesPlayed: 12 },
       ],
       topGainers: [],
       topLosers: [],
@@ -132,7 +134,7 @@ describe('Weekly Summary Embed', () => {
     expect(description).toContain('3.20 avg');
   });
 
-  it('Given weekly summary with no games, When formatted, Then shows no games message', async () => {
+  test('Given weekly summary with no games, When formatted, Then shows no games message', async () => {
     const summary: WeeklySummary = {
       totalGames: 0,
       uniquePlayers: 0,
@@ -149,7 +151,7 @@ describe('Weekly Summary Embed', () => {
 });
 
 describe('Monthly Summary Embed', () => {
-  it('Given monthly summary with champion, When formatted, Then shows champion and stats', async () => {
+  test('Given monthly summary with champion, When formatted, Then shows champion and stats', async () => {
     const summary: MonthlySummary = {
       totalGames: 60,
       champion: {
@@ -192,7 +194,7 @@ describe('Monthly Summary Embed', () => {
     expect(description).toContain('4.10');
   });
 
-  it('Given monthly summary with no games, When formatted, Then shows no games message', async () => {
+  test('Given monthly summary with no games, When formatted, Then shows no games message', async () => {
     const summary: MonthlySummary = {
       totalGames: 0,
       champion: null,

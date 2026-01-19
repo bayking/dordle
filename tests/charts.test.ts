@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, test, expect } from 'bun:test';
 import {
   prepareLeaderboardChartData,
   type LeaderboardChartEntry,
@@ -41,7 +41,7 @@ const TEST_ENTRIES = {
 
 describe('prepareLeaderboardChartData', () => {
   describe('Given entries with ELO history', () => {
-    it('Returns labels from wordle numbers', () => {
+    test('Returns labels from wordle numbers', () => {
       const entries: LeaderboardChartEntry[] = [TEST_ENTRIES.ALICE, TEST_ENTRIES.BOB];
 
       const { labels } = prepareLeaderboardChartData(entries);
@@ -49,7 +49,7 @@ describe('prepareLeaderboardChartData', () => {
       expect(labels).toEqual(['#1670', '#1671', '#1672']);
     });
 
-    it('Returns datasets with correct ELO values', () => {
+    test('Returns datasets with correct ELO values', () => {
       const entries: LeaderboardChartEntry[] = [TEST_ENTRIES.ALICE];
 
       const { datasets } = prepareLeaderboardChartData(entries);
@@ -59,7 +59,7 @@ describe('prepareLeaderboardChartData', () => {
       expect(datasets[0]!.data).toEqual([1500, 1520, 1550]);
     });
 
-    it('Returns null for missing wordle numbers when other players have data', () => {
+    test('Returns null for missing wordle numbers when other players have data', () => {
       // Alice has all wordles, Charlie is missing 1671
       const entries: LeaderboardChartEntry[] = [TEST_ENTRIES.ALICE, TEST_ENTRIES.CHARLIE_SPARSE];
 
@@ -75,7 +75,7 @@ describe('prepareLeaderboardChartData', () => {
   });
 
   describe('Given entries with empty history', () => {
-    it('Uses currentElo as single data point when no history', () => {
+    test('Uses currentElo as single data point when no history', () => {
       const entries: LeaderboardChartEntry[] = [TEST_ENTRIES.EMPTY_HISTORY];
 
       const { labels, datasets } = prepareLeaderboardChartData(entries);
@@ -85,7 +85,7 @@ describe('prepareLeaderboardChartData', () => {
       expect(datasets[0]!.data).toEqual([1500]);
     });
 
-    it('Mixes historical and current-only entries', () => {
+    test('Mixes historical and current-only entries', () => {
       const entries: LeaderboardChartEntry[] = [
         TEST_ENTRIES.ALICE,
         TEST_ENTRIES.EMPTY_HISTORY,
@@ -104,7 +104,7 @@ describe('prepareLeaderboardChartData', () => {
   });
 
   describe('Given more than 7 wordle numbers', () => {
-    it('Only shows last 7 wordles', () => {
+    test('Only shows last 7 wordles', () => {
       const manyWordles: EloDataPoint[] = [];
       for (let i = 1660; i <= 1675; i++) {
         manyWordles.push({ wordleNumber: i, elo: 1500 + i - 1660 });
@@ -122,7 +122,7 @@ describe('prepareLeaderboardChartData', () => {
   });
 
   describe('Given no entries', () => {
-    it('Returns empty labels and datasets', () => {
+    test('Returns empty labels and datasets', () => {
       const { labels, datasets } = prepareLeaderboardChartData([]);
 
       expect(labels).toEqual([]);
@@ -131,7 +131,7 @@ describe('prepareLeaderboardChartData', () => {
   });
 
   describe('Given all entries have empty history', () => {
-    it('Shows current ELO for all players', () => {
+    test('Shows current ELO for all players', () => {
       const entries: LeaderboardChartEntry[] = [
         { name: 'Player1', currentElo: 1550, eloHistory: [] },
         { name: 'Player2', currentElo: 1480, eloHistory: [] },
