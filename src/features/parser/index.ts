@@ -11,6 +11,31 @@ export { resolveUser } from '@/features/parser/resolver';
 
 const WORDLE_APP_USERNAME = 'Wordle';
 
+/**
+ * Calculate "yesterday" based on the server's timezone.
+ * The Wordle app posts "yesterday's results" after midnight in the user's timezone.
+ * We need to determine what date "yesterday" is in the server's configured timezone.
+ */
+function getYesterdayInTimezone(messageDate: Date, timezone: string): Date {
+  // Format the message date in the server's timezone to get the local date
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const localDateStr = formatter.format(messageDate); // Returns YYYY-MM-DD
+
+  // Parse the local date and subtract 1 day to get "yesterday"
+  const [year, month, day] = localDateStr.split('-').map(Number);
+  const localDate = new Date(Date.UTC(year!, month! - 1, day!));
+
+  // Subtract 1 day
+  localDate.setUTCDate(localDate.getUTCDate() - 1);
+
+  return localDate;
+}
+
 export async function handleMessage(message: Message): Promise<void> {
   if (!message.guildId) return;
   if (message.author.username !== WORDLE_APP_USERNAME) return;
@@ -28,8 +53,8 @@ export async function handleMessage(message: Message): Promise<void> {
 
   let wordleNumber: number | null = null;
 
-  // Wordle app posts "yesterday's results", so playedAt is one day before message
-  const playedAt = new Date(message.createdAt.getTime() - 86400000);
+  // Wordle app posts "yesterday's results", so playedAt is "yesterday" in server's timezone
+  const playedAt = getYesterdayInTimezone(message.createdAt, server.timezone ?? 'UTC');
 
   for (const { discordId, username, score } of parsed.scores) {
     const resolved = await resolveUser(message.guild, { discordId, username });
