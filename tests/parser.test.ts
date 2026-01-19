@@ -189,6 +189,43 @@ X/6: @Eve`;
     });
   });
 
+  describe('Given streaks with "an" before vowel-sound numbers', () => {
+    test('When 8 day streak, Then extracts streak correctly', () => {
+      const message = `Your group is on an 8 day streak! 🔥 Here are yesterday's results:
+
+👑 5/6: @bay @runar12 @pjong
+6/6: @Emma`;
+
+      const result = parseWordleMessage(message);
+
+      expect(result).not.toBeNull();
+      expect(result!.groupStreak).toBe(8);
+      expect(result!.scores).toHaveLength(4);
+    });
+
+    test('When 11 day streak, Then extracts streak correctly', () => {
+      const message = `Your group is on an 11 day streak! 🔥 Here are yesterday's results:
+
+🏆 4/6: @Alice`;
+
+      const result = parseWordleMessage(message);
+
+      expect(result).not.toBeNull();
+      expect(result!.groupStreak).toBe(11);
+    });
+
+    test('When 18 day streak, Then extracts streak correctly', () => {
+      const message = `Your group is on an 18 day streak! 🔥 Here are yesterday's results:
+
+🏆 3/6: @Alice`;
+
+      const result = parseWordleMessage(message);
+
+      expect(result).not.toBeNull();
+      expect(result!.groupStreak).toBe(18);
+    });
+  });
+
   describe('Given varied score formats', () => {
     test('When parsed, Then handles all valid scores 1-6 and X', () => {
       const message = `Your group is on a 7 day streak! 🔥 Here are yesterday's results:

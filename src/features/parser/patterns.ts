@@ -12,7 +12,7 @@ export interface ParsedResult {
   winners: string[];
 }
 
-const STREAK_PATTERN = /Your group is on a (\d+) day streak!/;
+const STREAK_PATTERN = /Your group is on an? (\d+) day streak!/;
 const RESULTS_INDICATOR = "Here are yesterday's results";
 
 export function parseWordleMessage(content: string): ParsedResult | null {
