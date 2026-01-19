@@ -13,8 +13,8 @@ export const DAILY_WINNER_BONUS = 10;
 export const PROVISIONAL_GAMES = 10;
 export const ESTABLISHING_GAMES = 30;
 
-// Minimum players required for ELO to change
-export const MIN_PLAYERS_FOR_ELO = 2;
+// Minimum players required for ELO to change (1 = solo players get winner bonus)
+export const MIN_PLAYERS_FOR_ELO = 1;
 
 // Fail (X/7) is treated as this score for ELO calculation
 // Makes failing significantly worse than scoring 6

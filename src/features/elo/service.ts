@@ -84,18 +84,27 @@ function calculateActualResult(playerScore: number, opponentScore: number): numb
  * Daily winner(s) with the best score get a bonus.
  */
 export function calculateDailyEloChanges(players: PlayerGame[]): EloUpdate[] {
-  // Not enough players for meaningful competition
-  if (players.length < MIN_PLAYERS_FOR_ELO) {
-    return players.map((p) => ({
-      userId: p.userId,
-      oldElo: p.elo,
-      newElo: p.elo,
-      change: 0,
-    }));
+  if (players.length === 0) {
+    return [];
   }
 
   // Find the best (lowest) score for winner bonus
   const bestScore = Math.min(...players.map((p) => p.score));
+
+  // Solo player: no pairwise comparison, just winner bonus and fail penalty
+  if (players.length === 1) {
+    const player = players[0]!;
+    let change = DAILY_WINNER_BONUS; // Solo player is always the winner
+    if (player.score === 7) {
+      change -= FAIL_PENALTY;
+    }
+    return [{
+      userId: player.userId,
+      oldElo: player.elo,
+      newElo: player.elo + change,
+      change,
+    }];
+  }
 
   const updates: EloUpdate[] = [];
 

@@ -63,8 +63,8 @@ describe('ELO Constants', () => {
     expect(ESTABLISHING_GAMES).toBe(30);
   });
 
-  test('MIN_PLAYERS_FOR_ELO is 2', () => {
-    expect(MIN_PLAYERS_FOR_ELO).toBe(2);
+  test('MIN_PLAYERS_FOR_ELO is 1 (solo players get winner bonus)', () => {
+    expect(MIN_PLAYERS_FOR_ELO).toBe(1);
   });
 
   test('FAIL_EFFECTIVE_SCORE is 9', () => {
@@ -109,7 +109,7 @@ describe('calculateDailyEloChanges', () => {
   });
 
   describe('Given single player', () => {
-    test('Returns no change (insufficient competition)', () => {
+    test('Solo player gets winner bonus', () => {
       const players: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.EXCELLENT),
       ];
@@ -117,8 +117,19 @@ describe('calculateDailyEloChanges', () => {
       const updates = calculateDailyEloChanges(players);
 
       expect(updates).toHaveLength(1);
-      expect(updates[0]!.change).toBe(0);
-      expect(updates[0]!.newElo).toBe(updates[0]!.oldElo);
+      expect(updates[0]!.change).toBe(DAILY_WINNER_BONUS);
+      expect(updates[0]!.newElo).toBe(DEFAULT_ELO + DAILY_WINNER_BONUS);
+    });
+
+    test('Solo player with fail gets winner bonus minus fail penalty', () => {
+      const players: PlayerGame[] = [
+        createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.FAIL),
+      ];
+
+      const updates = calculateDailyEloChanges(players);
+
+      expect(updates).toHaveLength(1);
+      expect(updates[0]!.change).toBe(DAILY_WINNER_BONUS - FAIL_PENALTY);
     });
   });
 
@@ -418,7 +429,7 @@ describe('calculateAbsentPlayerEloChanges', () => {
   });
 
   describe('Given single participant', () => {
-    test('Returns empty array (need MIN_PLAYERS_FOR_ELO)', () => {
+    test('Absent player still gets penalized when solo player shows up', () => {
       const participants: PlayerGame[] = [
         createPlayer(TEST_USER_IDS.ALICE, DEFAULT_ELO, SCORES.AVERAGE),
       ];
@@ -428,7 +439,8 @@ describe('calculateAbsentPlayerEloChanges', () => {
 
       const updates = calculateAbsentPlayerEloChanges(participants, absentPlayers);
 
-      expect(updates).toHaveLength(0);
+      expect(updates).toHaveLength(1);
+      expect(updates[0]!.change).toBeLessThan(0);
     });
   });
 
