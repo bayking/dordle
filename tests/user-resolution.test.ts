@@ -23,7 +23,7 @@ const USERNAMES = {
 describe('User Resolution', () => {
   describe('Given a Discord ID without username', () => {
     test('When resolved, Then fetches username from Discord API', async () => {
-      const mockUser = { id: DISCORD_IDS.PJONG, username: USERNAMES.PJONG };
+      const mockUser = { id: DISCORD_IDS.PJONG, displayName: USERNAMES.PJONG };
       const mockFetch = mock(() => Promise.resolve({ user: mockUser }));
       const mockGuild = {
         members: {

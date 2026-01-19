@@ -51,7 +51,7 @@ async function resolveUsername(client: Client, entry: LeaderboardEntry): Promise
 
   try {
     const user = await client.users.fetch(entry.discordId);
-    return user.username;
+    return user.displayName;
   } catch {
     return entry.wordleUsername ?? 'Unknown';
   }

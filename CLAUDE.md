@@ -3,7 +3,7 @@
 ## Testing
 
 - Use TDD (Test-Driven Development): write tests first, then implement
-- Run tests with `bun test`
+- Run tests with `bun run test`
 
 ### Unit Testing Best Practices
 

@@ -18,12 +18,12 @@ const USERNAMES = {
 const WORDLE_NUMBER = 1234;
 
 const mockUserFetch = mock((id: string) => {
-  const userMap: Record<string, { username: string }> = {
-    [DISCORD_IDS.ALICE]: { username: USERNAMES.ALICE },
-    [DISCORD_IDS.BOB]: { username: USERNAMES.BOB },
-    [DISCORD_IDS.CHARLIE]: { username: USERNAMES.CHARLIE },
+  const userMap: Record<string, { displayName: string }> = {
+    [DISCORD_IDS.ALICE]: { displayName: USERNAMES.ALICE },
+    [DISCORD_IDS.BOB]: { displayName: USERNAMES.BOB },
+    [DISCORD_IDS.CHARLIE]: { displayName: USERNAMES.CHARLIE },
   };
-  return Promise.resolve(userMap[id] ?? { username: id });
+  return Promise.resolve(userMap[id] ?? { displayName: id });
 });
 
 const mockClient = {

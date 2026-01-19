@@ -15,7 +15,7 @@ async function resolveUsername(client: Client, discordId: string, fallback: stri
   }
   try {
     const user = await client.users.fetch(discordId);
-    return user.username;
+    return user.displayName;
   } catch {
     return fallback ?? discordId;
   }

@@ -35,7 +35,7 @@ export function formatStatsEmbed(user: DiscordUser, stats: UserStats): EmbedBuil
     .join('\n');
 
   return new EmbedBuilder()
-    .setTitle(`${user.username}'s Wordle Stats`)
+    .setTitle(`${user.displayName}'s Wordle Stats`)
     .setColor(0x6aaa64)
     .addFields(
       { name: 'Games', value: stats.totalGames.toString(), inline: true },

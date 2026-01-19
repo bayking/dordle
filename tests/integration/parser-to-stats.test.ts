@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { setupTestDb, teardownTestDb } from './setup';
 import { parseWordleMessage } from '@/features/parser/patterns';
 import { getOrCreateServer, getOrCreateUser, recordGame, calculateUserStats, Score, deleteServerStats } from '@/features/stats';
@@ -77,7 +77,7 @@ describe('Parser to Stats Integration', () => {
     teardownTestDb();
   });
 
-  it('Given a parsed Wordle message, When saved and stats calculated, Then stats reflect the game', async () => {
+  test('Given a parsed Wordle message, When saved and stats calculated, Then stats reflect the game', async () => {
     const parsed = parseWordleMessage(WORDLE_MESSAGES.SINGLE_PLAYER);
     expect(parsed).not.toBeNull();
 
@@ -103,7 +103,7 @@ describe('Parser to Stats Integration', () => {
     expect(stats!.distribution[Score.Three]).toBe(1);
   });
 
-  it('Given multiple games saved, When stats calculated, Then stats aggregate correctly', async () => {
+  test('Given multiple games saved, When stats calculated, Then stats aggregate correctly', async () => {
     const server = await getOrCreateServer(TEST_SERVER_DISCORD_ID);
     const user = await getOrCreateUser(server.id, DISCORD_IDS.TEST_USER, USERNAMES.TEST_USER);
 
@@ -128,7 +128,7 @@ describe('Parser to Stats Integration', () => {
     expect(stats!.maxStreak).toBe(EXPECTED_STATS.FIVE_GAMES.maxStreak);
   });
 
-  it('Given a fail game, When stats calculated, Then win rate and average reflect failure', async () => {
+  test('Given a fail game, When stats calculated, Then win rate and average reflect failure', async () => {
     const server = await getOrCreateServer(TEST_SERVER_DISCORD_ID);
     const user = await getOrCreateUser(server.id, DISCORD_IDS.TEST_USER, USERNAMES.TEST_USER);
 
@@ -158,7 +158,7 @@ describe('Parser to Stats Integration', () => {
     expect(stats!.distribution[Score.Fail]).toBe(1);
   });
 
-  it('Given duplicate game submission, When saved twice, Then only one game recorded', async () => {
+  test('Given duplicate game submission, When saved twice, Then only one game recorded', async () => {
     const server = await getOrCreateServer(TEST_SERVER_DISCORD_ID);
     const user = await getOrCreateUser(server.id, DISCORD_IDS.TEST_USER, USERNAMES.TEST_USER);
 
@@ -194,7 +194,7 @@ describe('Parser to Leaderboard Integration', () => {
     teardownTestDb();
   });
 
-  it('Given multiple users with games, When leaderboard generated, Then ranked by ELO with average as tiebreaker', async () => {
+  test('Given multiple users with games, When leaderboard generated, Then ranked by ELO with average as tiebreaker', async () => {
     const server = await getOrCreateServer(TEST_SERVER_DISCORD_ID);
 
     const alice = await getOrCreateUser(server.id, DISCORD_IDS.ALICE, USERNAMES.ALICE);
@@ -226,7 +226,7 @@ describe('Parser to Leaderboard Integration', () => {
     expect(leaderboard[2]!.rank).toBe(1); // Same ELO = same rank
   });
 
-  it('Given users with tied averages, When leaderboard generated, Then same rank assigned', async () => {
+  test('Given users with tied averages, When leaderboard generated, Then same rank assigned', async () => {
     const server = await getOrCreateServer(TEST_SERVER_DISCORD_ID);
 
     const alice = await getOrCreateUser(server.id, DISCORD_IDS.ALICE, USERNAMES.ALICE);
@@ -242,7 +242,7 @@ describe('Parser to Leaderboard Integration', () => {
     expect(leaderboard[1]!.rank).toBe(1);
   });
 
-  it('Given user with only fails, When leaderboard generated, Then has average of 7', async () => {
+  test('Given user with only fails, When leaderboard generated, Then has average of 7', async () => {
     const server = await getOrCreateServer(TEST_SERVER_DISCORD_ID);
 
     const alice = await getOrCreateUser(server.id, DISCORD_IDS.ALICE, USERNAMES.ALICE);
@@ -271,7 +271,7 @@ describe('Server Stats Reset Integration', () => {
     teardownTestDb();
   });
 
-  it('Given a server with games, When reset, Then all games and users deleted', async () => {
+  test('Given a server with games, When reset, Then all games and users deleted', async () => {
     const server = await getOrCreateServer(TEST_SERVER_DISCORD_ID);
 
     const alice = await getOrCreateUser(server.id, DISCORD_IDS.ALICE, USERNAMES.ALICE);
@@ -287,7 +287,7 @@ describe('Server Stats Reset Integration', () => {
     expect(result.usersDeleted).toBe(2);
   });
 
-  it('Given a server with games, When reset, Then stats return null', async () => {
+  test('Given a server with games, When reset, Then stats return null', async () => {
     const server = await getOrCreateServer(TEST_SERVER_DISCORD_ID);
     const user = await getOrCreateUser(server.id, DISCORD_IDS.ALICE, USERNAMES.ALICE);
 
@@ -302,7 +302,7 @@ describe('Server Stats Reset Integration', () => {
     expect(statsAfter).toBeNull();
   });
 
-  it('Given a server with games, When reset, Then leaderboard is empty', async () => {
+  test('Given a server with games, When reset, Then leaderboard is empty', async () => {
     const server = await getOrCreateServer(TEST_SERVER_DISCORD_ID);
     const alice = await getOrCreateUser(server.id, DISCORD_IDS.ALICE, USERNAMES.ALICE);
 
@@ -317,7 +317,7 @@ describe('Server Stats Reset Integration', () => {
     expect(leaderboardAfter).toHaveLength(0);
   });
 
-  it('Given an empty server, When reset, Then returns zero counts', async () => {
+  test('Given an empty server, When reset, Then returns zero counts', async () => {
     const server = await getOrCreateServer(TEST_SERVER_DISCORD_ID);
 
     const result = await deleteServerStats(server.id);

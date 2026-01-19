@@ -28,7 +28,7 @@ export async function resolveUser(
       const member = await guild.members.fetch(input.discordId);
       return {
         discordId: input.discordId,
-        username: member.user.username,
+        username: member.user.displayName,
       };
     } catch {
       return {

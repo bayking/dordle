@@ -62,7 +62,7 @@ export const leaderboardCommand = {
         if (!entry.discordId.startsWith('wordle:')) {
           try {
             const user = await interaction.client.users.fetch(entry.discordId);
-            name = user.username;
+            name = user.displayName;
           } catch {
             // Keep wordleUsername or Unknown
           }

@@ -58,7 +58,7 @@ async function main(): Promise<void> {
                   if (!r.discordId.startsWith('wordle:')) {
                     try {
                       const user = await client.users.fetch(r.discordId);
-                      name = user.username;
+                      name = user.displayName;
                     } catch { /* keep fallback */ }
                   }
                   return {
