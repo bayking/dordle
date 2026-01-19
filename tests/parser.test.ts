@@ -203,6 +203,18 @@ X/6: @Eve`;
       expect(result!.scores).toHaveLength(4);
     });
 
+    test('When 8 day streak with bold markdown, Then extracts streak correctly', () => {
+      const message = `**Your group is on an 8 day streak!** 🔥 Here are yesterday's results:
+👑 5/6: @bay <@117319504228253701> <@116986846306762752>
+6/6: <@880711998231412746>`;
+
+      const result = parseWordleMessage(message);
+
+      expect(result).not.toBeNull();
+      expect(result!.groupStreak).toBe(8);
+      expect(result!.scores).toHaveLength(4);
+    });
+
     test('When 11 day streak, Then extracts streak correctly', () => {
       const message = `Your group is on an 11 day streak! 🔥 Here are yesterday's results:
 
