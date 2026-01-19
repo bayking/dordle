@@ -6,7 +6,7 @@ import type { Game, User } from '@/db/schema';
 // Mock at repository level - the actual dependencies
 const mockFindGamesByServerAndDateRange = mock(() => Promise.resolve([]));
 const mockFindUsersByServer = mock(() => Promise.resolve([]));
-const mockGetServerGroupStreak = mock(() => Promise.resolve(0));
+const mockFindRecentGamesByServer = mock(() => Promise.resolve([]));
 const mockGetEloChangesForWordle = mock(() => Promise.resolve([]));
 const mockGetEloHistoryForDateRange = mock(() => Promise.resolve([]));
 const mockGetOrCreateServer = mock(() => Promise.resolve({ id: 1, discordId: '123', timezone: 'UTC', summaryChannelId: null, createdAt: new Date() }));
@@ -15,7 +15,7 @@ const mockGetOrCreateServer = mock(() => Promise.resolve({ id: 1, discordId: '12
 mock.module('@/features/summaries/repository', () => ({
   findGamesByServerAndDateRange: mockFindGamesByServerAndDateRange,
   findUsersByServer: mockFindUsersByServer,
-  getServerGroupStreak: mockGetServerGroupStreak,
+  findRecentGamesByServer: mockFindRecentGamesByServer,
 }));
 
 mock.module('@/features/elo', () => ({
@@ -69,18 +69,26 @@ function createMockInteraction(period: string | null = null) {
   };
 }
 
+function createStreakGames(count: number, startingWordle: number = 1000): Game[] {
+  const games: Game[] = [];
+  for (let i = 0; i < count; i++) {
+    games.push(createGame(1, Score.Four, startingWordle - i));
+  }
+  return games;
+}
+
 describe('Summary Command', () => {
   beforeEach(() => {
     mockFindGamesByServerAndDateRange.mockClear();
     mockFindUsersByServer.mockClear();
-    mockGetServerGroupStreak.mockClear();
+    mockFindRecentGamesByServer.mockClear();
     mockGetEloChangesForWordle.mockClear();
     mockGetOrCreateServer.mockClear();
 
     // Default setup - return empty data
     mockFindGamesByServerAndDateRange.mockResolvedValue([]);
     mockFindUsersByServer.mockResolvedValue([]);
-    mockGetServerGroupStreak.mockResolvedValue(0);
+    mockFindRecentGamesByServer.mockResolvedValue([]);
     mockGetEloChangesForWordle.mockResolvedValue([]);
     mockGetEloHistoryForDateRange.mockResolvedValue([]);
   });
@@ -102,7 +110,7 @@ describe('Summary Command', () => {
       const games = [createGame(1, Score.Three, 1000)];
       mockFindGamesByServerAndDateRange.mockResolvedValue(games);
       mockFindUsersByServer.mockResolvedValue(TEST_USERS);
-      mockGetServerGroupStreak.mockResolvedValue(5);
+      mockFindRecentGamesByServer.mockResolvedValue(createStreakGames(5));
 
       const interaction = createMockInteraction(null);
       await summaryCommand.execute(interaction as any);
@@ -121,7 +129,7 @@ describe('Summary Command', () => {
       ];
       mockFindGamesByServerAndDateRange.mockResolvedValue(games);
       mockFindUsersByServer.mockResolvedValue(TEST_USERS);
-      mockGetServerGroupStreak.mockResolvedValue(3);
+      mockFindRecentGamesByServer.mockResolvedValue(createStreakGames(3));
 
       const interaction = createMockInteraction(SummaryPeriod.Daily);
       await summaryCommand.execute(interaction as any);

@@ -156,6 +156,37 @@ function calculateStreaks(games: Game[]): { currentStreak: number; maxStreak: nu
   return { currentStreak: streak, maxStreak };
 }
 
+/**
+ * Calculate group streak from a list of games.
+ * Counts consecutive wordle numbers (no gaps) starting from the most recent.
+ */
+export function calculateGroupStreak(games: Game[]): number {
+  if (games.length === 0) return 0;
+
+  const wordleNumbers = [...new Set(games.map((g) => g.wordleNumber))].sort(
+    (a, b) => b - a
+  );
+
+  let streak = 0;
+  let previousWordle: number | null = null;
+
+  for (const wordleNumber of wordleNumbers) {
+    // Check for gaps in wordle numbers (must be consecutive)
+    if (previousWordle !== null && previousWordle - wordleNumber !== 1) {
+      break;
+    }
+    streak++;
+    previousWordle = wordleNumber;
+  }
+
+  return streak;
+}
+
+export async function getServerGroupStreak(serverId: number): Promise<number> {
+  const recentGames = await repo.findRecentGamesByServer(serverId);
+  return calculateGroupStreak(recentGames);
+}
+
 export async function generateDailySummary(
   serverId: number,
   referenceDate: Date
@@ -164,7 +195,7 @@ export async function generateDailySummary(
   const [games, users, groupStreak] = await Promise.all([
     repo.findGamesByServerAndDateRange(serverId, start, end),
     repo.findUsersByServer(serverId),
-    repo.getServerGroupStreak(serverId),
+    getServerGroupStreak(serverId),
   ]);
 
   const userMap = buildUserMap(users);
@@ -181,7 +212,10 @@ export async function generateDailySummary(
     };
   }
 
+  // Games are sorted DESC by playedAt, so the first game has the most recent wordle number
+  // Filter to only include games from that wordle (the 2-day range may capture multiple wordles)
   const wordleNumber = games[0]!.wordleNumber;
+  const todaysGames = games.filter((g) => g.wordleNumber === wordleNumber);
 
   // Fetch ELO changes for this wordle
   const eloHistoryRecords = await getEloChangesForWordle(serverId, wordleNumber);
@@ -190,7 +224,7 @@ export async function generateDailySummary(
     eloByUser.set(record.userId, record);
   }
 
-  const scores: PlayerScore[] = games.map((game) => {
+  const scores: PlayerScore[] = todaysGames.map((game) => {
     const user = userMap.get(game.userId);
     const eloRecord = eloByUser.get(game.userId);
     return {
@@ -218,7 +252,7 @@ export async function generateDailySummary(
   // Sort by change descending (biggest gains first)
   eloChanges.sort((a, b) => b.change - a.change);
 
-  const winningGames = games.filter((g) => g.score !== Score.Fail);
+  const winningGames = todaysGames.filter((g) => g.score !== Score.Fail);
   const bestScore = winningGames.length > 0
     ? Math.min(...winningGames.map((g) => g.score))
     : null;
@@ -229,7 +263,7 @@ export async function generateDailySummary(
 
   return {
     wordleNumber,
-    participants: games.length,
+    participants: todaysGames.length,
     winner: winners[0] ?? null,
     winners,
     scores,

@@ -25,36 +25,14 @@ export async function findUsersByServer(serverId: number): Promise<User[]> {
   });
 }
 
-export async function getServerGroupStreak(serverId: number): Promise<number> {
+export async function findRecentGamesByServer(
+  serverId: number,
+  limit: number = 100
+): Promise<Game[]> {
   const db = getDb();
-  const recentGames = await db.query.games.findMany({
+  return db.query.games.findMany({
     where: eq(games.serverId, serverId),
     orderBy: desc(games.playedAt),
-    limit: 100,
+    limit,
   });
-
-  if (recentGames.length === 0) return 0;
-
-  const gamesByWordle = new Map<number, Game[]>();
-  for (const game of recentGames) {
-    const wordleGames = gamesByWordle.get(game.wordleNumber) ?? [];
-    wordleGames.push(game);
-    gamesByWordle.set(game.wordleNumber, wordleGames);
-  }
-
-  const wordleNumbers = [...gamesByWordle.keys()].sort((a, b) => b - a);
-  let streak = 0;
-
-  for (const wordleNumber of wordleNumbers) {
-    const wordleGames = gamesByWordle.get(wordleNumber)!;
-    const hasParticipation = wordleGames.length > 0;
-
-    if (hasParticipation) {
-      streak++;
-    } else {
-      break;
-    }
-  }
-
-  return streak;
 }

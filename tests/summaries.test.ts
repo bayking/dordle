@@ -5,7 +5,7 @@ import type { Game, User } from '@/db/schema';
 // Create mocks
 const mockFindGamesByServerAndDateRange = mock(() => Promise.resolve([]));
 const mockFindUsersByServer = mock(() => Promise.resolve([]));
-const mockGetServerGroupStreak = mock(() => Promise.resolve(0));
+const mockFindRecentGamesByServer = mock(() => Promise.resolve([]));
 const mockGetEloChangesForWordle = mock(() => Promise.resolve([]));
 const mockGetEloHistoryForDateRange = mock(() => Promise.resolve([]));
 
@@ -13,7 +13,7 @@ const mockGetEloHistoryForDateRange = mock(() => Promise.resolve([]));
 mock.module('@/features/summaries/repository', () => ({
   findGamesByServerAndDateRange: mockFindGamesByServerAndDateRange,
   findUsersByServer: mockFindUsersByServer,
-  getServerGroupStreak: mockGetServerGroupStreak,
+  findRecentGamesByServer: mockFindRecentGamesByServer,
 }));
 
 mock.module('@/features/elo', () => ({
@@ -23,7 +23,7 @@ mock.module('@/features/elo', () => ({
 }));
 
 // Import after mocking
-const { generateDailySummary, generateWeeklySummary, generateMonthlySummary } =
+const { generateDailySummary, generateWeeklySummary, generateMonthlySummary, calculateGroupStreak } =
   await import('@/features/summaries/service');
 
 // Test constants
@@ -80,15 +80,71 @@ function createGame(
   };
 }
 
+// Helper to create games that produce a specific streak count
+function createStreakGames(streakCount: number, startingWordle: number = 1000): Game[] {
+  const games: Game[] = [];
+  for (let i = 0; i < streakCount; i++) {
+    games.push(createGame(USERS.ALICE.id, Score.Four, i, startingWordle - i));
+  }
+  return games;
+}
+
+describe('Group Streak Calculation', () => {
+  test('Given consecutive wordle numbers, When calculating streak, Then counts all days', () => {
+    // Games for wordles 1000, 999, 998 (all consecutive)
+    const games = [
+      createGame(USERS.ALICE.id, Score.Four, 0, 1000),
+      createGame(USERS.BOB.id, Score.Three, 0, 1000),
+      createGame(USERS.ALICE.id, Score.Four, 1, 999),
+      createGame(USERS.ALICE.id, Score.Four, 2, 998),
+    ];
+
+    const streak = calculateGroupStreak(games);
+
+    expect(streak).toBe(3);
+  });
+
+  test('Given gap in wordle numbers, When calculating streak, Then stops at gap', () => {
+    // Games for wordles 1000, 999, 997 (gap at 998)
+    const games = [
+      createGame(USERS.ALICE.id, Score.Four, 0, 1000),
+      createGame(USERS.ALICE.id, Score.Four, 1, 999),
+      createGame(USERS.ALICE.id, Score.Four, 3, 997), // Skipped 998
+    ];
+
+    const streak = calculateGroupStreak(games);
+
+    expect(streak).toBe(2); // Only 1000 and 999, stops before gap
+  });
+
+  test('Given no games, When calculating streak, Then returns 0', () => {
+    const streak = calculateGroupStreak([]);
+
+    expect(streak).toBe(0);
+  });
+
+  test('Given single wordle, When calculating streak, Then returns 1', () => {
+    const games = [
+      createGame(USERS.ALICE.id, Score.Four, 0, 1000),
+      createGame(USERS.BOB.id, Score.Three, 0, 1000),
+    ];
+
+    const streak = calculateGroupStreak(games);
+
+    expect(streak).toBe(1);
+  });
+});
+
 describe('Summary Generation', () => {
   beforeEach(() => {
     mockFindGamesByServerAndDateRange.mockClear();
     mockFindUsersByServer.mockClear();
-    mockGetServerGroupStreak.mockClear();
+    mockFindRecentGamesByServer.mockClear();
     mockGetEloChangesForWordle.mockClear();
     mockGetEloHistoryForDateRange.mockClear();
 
-    // Default ELO mocks - return empty arrays
+    // Default mocks
+    mockFindRecentGamesByServer.mockResolvedValue([]);
     mockGetEloChangesForWordle.mockResolvedValue([]);
     mockGetEloHistoryForDateRange.mockResolvedValue([]);
   });
@@ -102,7 +158,7 @@ describe('Summary Generation', () => {
       ];
       mockFindGamesByServerAndDateRange.mockResolvedValue(games);
       mockFindUsersByServer.mockResolvedValue(Object.values(USERS));
-      mockGetServerGroupStreak.mockResolvedValue(5);
+      mockFindRecentGamesByServer.mockResolvedValue(createStreakGames(5));
 
       const summary = await generateDailySummary(TEST_SERVER_ID, TEST_DATE);
 
@@ -124,7 +180,7 @@ describe('Summary Generation', () => {
       ];
       mockFindGamesByServerAndDateRange.mockResolvedValue(games);
       mockFindUsersByServer.mockResolvedValue(Object.values(USERS));
-      mockGetServerGroupStreak.mockResolvedValue(3);
+      mockFindRecentGamesByServer.mockResolvedValue(createStreakGames(3));
 
       const summary = await generateDailySummary(TEST_SERVER_ID, TEST_DATE);
 
@@ -136,7 +192,7 @@ describe('Summary Generation', () => {
     test('Given no games yesterday, When daily summary generated, Then returns empty summary', async () => {
       mockFindGamesByServerAndDateRange.mockResolvedValue([]);
       mockFindUsersByServer.mockResolvedValue(Object.values(USERS));
-      mockGetServerGroupStreak.mockResolvedValue(0);
+      mockFindRecentGamesByServer.mockResolvedValue([]);
 
       const summary = await generateDailySummary(TEST_SERVER_ID, TEST_DATE);
 
@@ -152,11 +208,40 @@ describe('Summary Generation', () => {
       ];
       mockFindGamesByServerAndDateRange.mockResolvedValue(games);
       mockFindUsersByServer.mockResolvedValue(Object.values(USERS));
-      mockGetServerGroupStreak.mockResolvedValue(1);
+      mockFindRecentGamesByServer.mockResolvedValue(createStreakGames(1));
 
       const summary = await generateDailySummary(TEST_SERVER_ID, TEST_DATE);
 
       expect(summary.winner?.userId).toBe(USERS.BOB.id);
+    });
+
+    test('Given games from multiple wordles in date range, When daily summary generated, Then only most recent wordle games included', async () => {
+      // This simulates the 2-day date range capturing games from both yesterday and day before
+      // Games are returned DESC by playedAt, so newest (wordle 1001) comes first
+      const games = [
+        // Day 8 games (Wordle 1001) - most recent, should be used
+        createGame(USERS.ALICE.id, Score.Five, 1, 1001),  // Alice got 5/6 on day 8
+        createGame(USERS.BOB.id, Score.Six, 1, 1001),     // Bob got 6/6 on day 8
+        // Day 7 games (Wordle 1000) - older, should be excluded
+        createGame(USERS.ALICE.id, Score.Four, 2, 1000),  // Alice got 4/6 on day 7
+        createGame(USERS.BOB.id, Score.Fail, 2, 1000),    // Bob got X/6 on day 7
+      ];
+      mockFindGamesByServerAndDateRange.mockResolvedValue(games);
+      mockFindUsersByServer.mockResolvedValue(Object.values(USERS));
+      mockFindRecentGamesByServer.mockResolvedValue(createStreakGames(8));
+
+      const summary = await generateDailySummary(TEST_SERVER_ID, TEST_DATE);
+
+      // Should use Wordle 1001 (most recent)
+      expect(summary.wordleNumber).toBe(1001);
+      // Should only have 2 participants (day 8 games only)
+      expect(summary.participants).toBe(2);
+      // Winner should be Alice with 5/6 (not 4/6 from day 7)
+      expect(summary.winner?.userId).toBe(USERS.ALICE.id);
+      expect(summary.winner?.score).toBe(Score.Five);
+      // Bob should have 6/6 (not X/6 from day 7)
+      const bobScore = summary.scores.find(s => s.userId === USERS.BOB.id);
+      expect(bobScore?.score).toBe(Score.Six);
     });
   });
 
